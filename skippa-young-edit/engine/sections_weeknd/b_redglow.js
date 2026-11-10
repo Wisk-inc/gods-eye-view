@@ -16,11 +16,12 @@ import { ease, prog, sat, lerp, track, pulse, clamp, rng, wobble, TAU, DEG } fro
 
 const VS_UV = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 
-// Dark rippling crimson field. Rings around the point behind the word, bent by slow noise; each ring is a rounded crest lit
-// from the word (the inner flank catches the light, a thin glossy line on the crest), with a silk texture along the rings.
-// The ripples spread outward from the centre (uFront). uMatch blends to the look section A hands over (soft red gradient).
+// Dark rippling crimson field: a satin / liquid surface. Rings around the point behind the word, bent by slow noise, turned
+// into a height field and LIT — a dim key light from the upper left and the word's own neon light from the centre — so the
+// ripples read as soft folds with sheen on one flank, not as contour lines. The ripples spread outward from the centre
+// (uFront). uMatch blends to the look section A hands over (its soft red radial gradient).
 const FS_FIELD = /* glsl */ `
-uniform sampler2D tNoise; uniform float uT; uniform vec2 uSize; uniform vec2 uC; uniform float uRing;
+uniform sampler2D tNoise; uniform float uT; uniform vec2 uSize; uniform vec2 uC; uniform float uRing; uniform float uSlope;
 uniform float uFront; uniform float uAmp; uniform float uPool; uniform float uPoolR; uniform float uGain; uniform float uFall;
 uniform vec3 uDeep; uniform vec3 uMid; uniform vec3 uHi; uniform vec3 uNeon;
 uniform float uPulse; uniform float uPulseR;
@@ -28,21 +29,31 @@ uniform float uMatch; uniform float uMatchK; uniform float uMatchT;
 varying vec2 vUv;
 void main(){
   vec2 p = (vUv - 0.5) * uSize; vec2 d = p - uC; float r = length(d); float ang = atan(d.y, d.x);
-  float wob = (texture2D(tNoise, d * 0.035 + vec2(uT * 0.004, 0.17)).g - 0.5) * 1.5 + (texture2D(tNoise, vec2(ang * 0.48 + 0.3, r * 0.018 - uT * 0.002)).b - 0.5) * 0.8;
-  float rr = max(r + wob * smoothstep(0.0, 2.5, r), 0.0);
+  // organic, seamless bending of the rings (whole-number angular harmonics: no seam at +-pi, no texel kinks)
+  float wob = 0.62 * sin(2.0 * ang + 0.7 + 0.35 * sin(r * 0.37 + uT * 0.05)) + 0.42 * sin(3.0 * ang - 1.2 + r * 0.23) + 0.26 * sin(5.0 * ang + 2.1 - r * 0.31) + 0.15 * sin(7.0 * ang + 0.4 + r * 0.5);
+  float rr = max(r + wob * 0.55 * smoothstep(0.0, 3.5, r), 0.0);
   float ph = 6.2832 * pow(rr / uRing, 0.85) - uT;
-  float s = sin(ph), c = cos(ph);
-  float env = uAmp * smoothstep(uFront, uFront - 3.0, r) * smoothstep(0.3, 1.4, r);
-  float lit = 0.5 + 0.5 * c;
-  float crest = pow(max(s, 0.0), 7.0);
+  float dph = 5.34 * pow(max(rr, 0.05) / uRing, -0.15) / uRing;
+  float env = uAmp * smoothstep(uFront, uFront - 3.5, r) * smoothstep(0.2, 1.6, r);
+  // fine second ripple riding on the big one (detail), and the slope of the surface
+  float ph2 = ph * 2.03 + 1.7 + (0.8 * sin(4.0 * ang + r * 0.6) + 0.5 * sin(9.0 * ang - 0.3)) * smoothstep(1.0, 4.5, r);
+  float slope = (cos(ph) * dph + 0.22 * cos(ph2) * dph * 2.03) * env * uSlope;
+  vec2 g = (d / max(r, 1e-3)) * slope;
+  vec3 N = normalize(vec3(-g, 1.0));
+  vec3 Lk = normalize(vec3(-0.55, 0.7, 0.5));
+  vec3 Lp = normalize(vec3(-d, 4.5));
   float fall = exp(-r / uFall);
-  float silk = texture2D(tNoise, vec2(ang * 2.2 + 0.5, rr * 0.16)).r;
-  vec3 col = mix(uDeep, uMid, fall);
-  col *= mix(1.0, 0.4 + 1.0 * lit, env);
-  col += uHi * crest * env * (0.1 + 1.0 * fall) * (0.75 + 0.5 * silk);
-  col *= 0.88 + 0.24 * silk;
-  col += uNeon * uPool * exp(-(r * r) / (uPoolR * uPoolR));
-  col += uHi * uPulse * exp(-pow((r - uPulseR) / 0.7, 2.0)) * (0.5 + 0.5 * lit) * (0.3 + fall);
+  float dk = max(dot(N, Lk), 0.0), dp = max(dot(N, Lp), 0.0);
+  float spk = pow(max(dot(reflect(-Lk, N), vec3(0.0, 0.0, 1.0)), 0.0), 16.0);
+  float spp = pow(max(dot(reflect(-Lp, N), vec3(0.0, 0.0, 1.0)), 0.0), 10.0);
+  float aa = abs(ang);                                     // mirrored angle: seamless silk lookups
+  float silk = texture2D(tNoise, vec2(aa * 1.1 + 0.5, rr * 0.12)).r;
+  float silk2 = texture2D(tNoise, vec2(aa * 3.5 + 0.1, rr * 0.4)).g;
+  vec3 col = uDeep + uMid * (0.38 * dk * (0.3 + 0.7 * fall) + 0.85 * dp * fall);
+  col += uHi * (0.28 * spk * (0.3 + 0.7 * fall) + 0.75 * spp * fall * fall) * (0.6 + 0.4 * env) * (0.7 + 0.6 * silk);
+  col *= 0.82 + 0.22 * silk + 0.12 * silk2;
+  col += uNeon * uPool * exp(-(d.x * d.x * 0.42 + d.y * d.y) / (uPoolR * uPoolR));
+  col += uHi * uPulse * exp(-pow((r - uPulseR) / 0.8, 2.0)) * (0.35 + 0.65 * dp) * (0.25 + fall);
   col *= uGain;
   float rp = r * uMatchK; float w = smoothstep(0.15, 0.85, sin(rp * 30.0 - uMatchT * 3.0) * 0.5 + 0.5);
   vec3 a = mix(vec3(0.043, 0.0, 0.004), vec3(0.29, 0.039, 0.039), smoothstep(0.75, 0.0, rp));
@@ -80,9 +91,9 @@ void main(){
   float s = abs(vS); float k = vK; float kb = 1.0 - k;
   float core = exp(-s * s / (0.045 + 0.6 * kb));
   float body = 1.0 - smoothstep(0.7, 1.05 + 0.9 * kb, s);
-  float halo = exp(-s * (1.15 - 0.45 * kb));
+  float halo = exp(-s * (0.95 - 0.35 * kb));
   float hd = 1.0 + uHead * exp(-pow((uB - vU) / (uEnd * 5.0), 2.0));
-  vec3 col = uCore * core * (0.2 + 0.8 * k) * 1.45 + uGlow * (body * (0.28 + 0.55 * k) + halo * 0.5);
+  vec3 col = uCore * core * (0.2 + 0.8 * k) * 1.45 + uGlow * (body * (0.3 + 0.55 * k) + halo * 0.55);
   gl_FragColor = vec4(col * (m * hd * uGain), 1.0);
 }`;
 
@@ -149,21 +160,22 @@ export default {
 
     // ------------------------------------------------------------------ palette + letter materials
     const NEON = '#ff2a3d', GOLD = '#f3cf7a';
-    const ST_N = { top: '#fff7f5', bot: '#ff6f7c', side: '#e8102c', sideDark: '#22030a', rim: '#ffffff', gain: 1.0, chrome: 0.18, rimAmt: 1.0 };
-    const ST_G = { top: '#ffffff', bot: '#ffc9d0', side: '#ff2440', sideDark: '#2c030c', rim: '#fff2f4', gain: 1.0, chrome: 0.3, rimAmt: 1.0 };
+    // neon letters: pink-white glass faces, a white-hot bevel outlining every letter, deep crimson sides falling to wine
+    const ST_N = { top: '#fff1f0', bot: '#ff6a78', side: '#e8102c', sideDark: '#1e0208', rim: '#ffffff', gain: 1.0, chrome: 0.16, rimAmt: 1.0 };
+    const ST_G = { top: '#fff6f6', bot: '#ff8292', side: '#ff2440', sideDark: '#260209', rim: '#ffffff', gain: 1.0, chrome: 0.26, rimAmt: 1.0 };
 
     // ------------------------------------------------------------------ words + framing
     const Z2 = -1.2;                                      // GLOWS sits a little deeper in the same space as NIGHT
-    const W3 = kit.word(words.s03 || 'NIGHT', { size: 1, depth: 0.55, style: ST_N, seed: 3 }); group.add(W3.group);
-    const W4 = kit.word(words.s04 || 'GLOWS', { size: 1, depth: 0.6, style: ST_G, seed: 4 }); group.add(W4.group);
-    W3.set('uFaceAmt', 0.18); W3.set('uGrit', 0.05); W3.set('uLight', V3(-0.45, 0.8, 0.4));
-    W4.set('uFaceAmt', 0.14); W4.set('uGrit', 0.04); W4.set('uLight', V3(0.25, 0.85, 0.1));
+    const W3 = kit.word(words.s03 || 'NIGHT', { size: 1, depth: 0.55, bevel: 0.02, style: ST_N, seed: 3 }); group.add(W3.group);
+    const W4 = kit.word(words.s04 || 'GLOWS', { size: 1, depth: 0.6, bevel: 0.02, style: ST_G, seed: 4 }); group.add(W4.group);
+    W3.set('uFaceAmt', 0.07); W3.set('uGrit', 0.025); W3.set('uLight', V3(-0.45, 0.8, 0.4));
+    W4.set('uFaceAmt', 0.06); W4.set('uGrit', 0.02); W4.set('uLight', V3(0.25, 0.85, 0.1));
     const box3 = new THREE.Box3().setFromObject(W3.group), box4 = new THREE.Box3().setFromObject(W4.group);
     const corners = (b) => { const out = []; for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) out.push(V3(x, y, z)); return out; };
     const C3 = corners(box3), C4 = corners(box4);
     const hw3 = Math.max(-box3.min.x, box3.max.x), hw4 = Math.max(-box4.min.x, box4.max.x);
     const d3 = Math.max((2 * hw3) / (1.294 * 0.56), 1 / (0.728 * 0.34));     // NIGHT: <= 56 % of the width, cap <= 34 %
-    const d4 = Math.max((2 * hw4) / (1.294 * 0.56), 1 / (0.728 * 0.33));     // GLOWS
+    const d4 = Math.max((2 * hw4) / (1.294 * 0.53), 1 / (0.728 * 0.31));     // GLOWS (a little smaller: its halo needs room)
     const st3 = Math.min(0.32, 1.3 / Math.max(1, W3.n - 1)), st4 = Math.min(0.38, 1.5 / Math.max(1, W4.n - 1));
 
     // ------------------------------------------------------------------ camera (one continuous move through the space)
@@ -217,7 +229,8 @@ export default {
       m.frustumCulled = false; m.u = u; m.ap = ap; return m;
     };
     // impact FX sits behind the word: drawn before the letters, its soft flash dimmed
-    const tuneFx = (fx, flash) => fx.group.children.forEach((grp) => { grp.children.forEach((m) => { m.renderOrder = -7; }); const glow = grp.children[grp.children.length - 1]; glow.renderOrder = -7.8; glow.material.color.multiplyScalar(flash); });
+    // (its star glints would sit right on the letters' edges in the hold: switched off, the halo carries the glints here)
+    const tuneFx = (fx, flash) => fx.group.children.forEach((grp) => { grp.children.forEach((m) => { m.renderOrder = -7; if (m.isSprite) m.visible = false; }); const glow = grp.children[grp.children.length - 1]; glow.renderOrder = -7.8; glow.material.color.multiplyScalar(flash); });
     const glowPlate = (w, h, color, order) => { const m = kit.plate(tex.glow, w, h, { color, additive: true, opacity: 0 }); m.renderOrder = order; return m; };
     // soft out-of-focus disc (a lens bokeh: flat body, brighter rim)
     const discTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
@@ -226,8 +239,8 @@ export default {
     // ------------------------------------------------------------------ background: the rippling crimson field
     const FZ = -11;
     const camS = camAt(21); const Df = camS.pos.z - FZ;
-    const fu = { tNoise: U(tex.noise), uT: U(0), uSize: U(new THREE.Vector2(48, 30)), uC: U(new THREE.Vector2(0, 0)), uRing: U(1.15), uFront: U(0), uAmp: U(1), uPool: U(0), uPoolR: U(2.7), uGain: U(1), uFall: U(5.5),
-      uDeep: U(COL('#0a0204')), uMid: U(COL('#4a0614')), uHi: U(COL('#b3001b')), uNeon: U(COL(NEON)), uPulse: U(0), uPulseR: U(0), uMatch: U(1), uMatchK: U(10.3 / (34 * Df)), uMatchT: U(0.7) };
+    const fu = { tNoise: U(tex.noise), uT: U(0), uSize: U(new THREE.Vector2(48, 30)), uC: U(new THREE.Vector2(0, 0)), uRing: U(1.7), uSlope: U(0.22), uFront: U(0), uAmp: U(1), uPool: U(0), uPoolR: U(2.4), uGain: U(1), uFall: U(4.3),
+      uDeep: U(COL('#0a0204')), uMid: U(COL('#4e030e')), uHi: U(COL('#d01028')), uNeon: U(COL(NEON)), uPulse: U(0), uPulseR: U(0), uMatch: U(1), uMatchK: U(10.3 / (34 * Df)), uMatchT: U(0.7) };
     const field = new THREE.Mesh(new THREE.PlaneGeometry(48, 30), new THREE.ShaderMaterial({ vertexShader: VS_UV, fragmentShader: FS_FIELD, uniforms: fu, depthWrite: false }));
     field.position.z = FZ; field.renderOrder = -20; group.add(field);
 
@@ -238,6 +251,9 @@ export default {
 
     // ------------------------------------------------------------------ NIGHT dressing (moves with the word)
     const pool3 = glowPlate(2 * hw3 * 1.55, 2.2, '#ff1a30', -8); pool3.position.z = -0.7; W3.group.add(pool3);
+    // a faint crimson dial behind the word, squashed to an ellipse (it foreshadows the halo GLOWS will get)
+    const orn3 = kit.ornaments({ center: [0, 0, 0], radius: (hw3 + 0.5) / 0.918, color: '#ff4a5c', opacity: 0.2, seed: 7 }); orn3.group.scale.set(1, 0.56, 1); orn3.group.position.z = -0.1;
+    orn3.group.children.forEach((m) => { m.position.z = -0.75; m.renderOrder = -7.2; }); W3.group.add(orn3.group);
     const fxS3 = Math.min(1.3, 0.6 + hw3 * 0.42);
     const fx3 = kit.impactFX([{ rf: 24, at: [0, 0, -0.8], size: fxS3, color: NEON, sparks: 20 }]); tuneFx(fx3, 0.45); W3.group.add(fx3.group);
 
@@ -245,11 +261,12 @@ export default {
     const pool4 = glowPlate(2 * hw4 * 1.6, 2.4, '#ff1a30', -8); pool4.position.z = -0.75; W4.group.add(pool4);
     const fxS4 = Math.min(1.35, 0.6 + hw4 * 0.45);
     const fx4 = kit.impactFX([{ rf: 36.5, at: [0, 0, -0.85], size: fxS4, color: NEON, sparks: 22 }]); tuneFx(fx4, 0.4); W4.group.add(fx4.group);
-    // the halo: one tube that sweeps in along the bottom of the frame and curls 1.08 times round the word (a hand-drawn loop)
+    // the halo: one tube that sweeps in along the bottom of the frame and bends once round the word, its two ends stopping
+    // just short of each other like a real bent-glass neon ring
     const haloG = new THREE.Group(); haloG.position.set(0, 0.0, Z2 - 0.5); haloG.rotation.x = -0.1; group.add(haloG);
-    const aH = hw4 * 1.1 + 0.95, bH = 1.3, TH0 = 215 * DEG, TURN = 1.08;
+    const aH = hw4 * 1.06 + 0.86, bH = 1.22, TH0 = 215 * DEG, TURN = 0.972;
     const feed = [[2.2, -0.2, 0.9], [1.6, -0.95, 0.55], [0.8, -1.32, 0.3], [-0.08, -1.4, 0.12], [-0.6, -1.08, 0.03]].map(([x, y, z]) => V3(x * aH, y * bH, z));
-    const loop = []; const ML = 44; for (let j = 0; j <= ML; j++) { const th = TH0 - TAU * TURN * (j / ML); const s = 1 + 0.06 * (j / ML); loop.push(V3(Math.cos(th) * aH * s, Math.sin(th) * bH * s, 0)); }
+    const loop = []; const ML = 44; for (let j = 0; j <= ML; j++) { const th = TH0 - TAU * TURN * (j / ML); const s = 1 + 0.012 * Math.sin(j * 0.9); loop.push(V3(Math.cos(th) * aH * s, Math.sin(th) * bH * s, 0)); }
     const halo = neon([...feed, ...loop], { r: 0.024, seg: 360, gain: 1.05, head: 0.9, order: -6 }); haloG.add(halo.mesh);
     const uJ = (() => { const L = halo.curve.getLengths(2000); const tJ = feed.length / (feed.length + loop.length - 1); return L[Math.round(tJ * 2000)] / L[2000]; })();
     const H_ON = [31.0, 36.7], H_OFF = [32.0, 35.2];
@@ -259,19 +276,20 @@ export default {
     const SPARKS = []; { const R = rng(404); const P = V3(), T = V3();
       for (let i = 0; i < 9; i++) { const b = 33.7 + i * 0.33 + R.range(-0.08, 0.08); const u = headU(b); if (u < uJ + 0.02) continue; halo.curve.getPointAt(Math.min(u, 0.999), P); halo.curve.getTangentAt(Math.min(u, 0.999), T);
         const out = V3(P.x / (aH * aH), P.y / (bH * bH), 0).normalize(); const vel = T.clone().multiplyScalar(R.range(0.12, 0.3)).addScaledVector(out, R.range(0.28, 0.5)); vel.z = R.range(-0.05, 0.08);
-        const m = kit.plate(tex.streak, 1, 1, { additive: true, color: i % 3 ? GOLD : '#fff4d8', opacity: 0, gain: 1.3 }); m.renderOrder = -5; haloG.add(m);
-        SPARKS.push({ m, b, p0: P.clone(), v: vel, life: R.range(2.6, 3.8), len: R.range(0.14, 0.24), w: R.range(0.016, 0.026), ph: R() * 6 }); } }
+        const m = kit.plate(tex.streak, 1, 1, { additive: true, color: i % 3 ? '#ffd27a' : '#fff1c8', opacity: 0, gain: 1.9 }); m.renderOrder = -5; haloG.add(m);
+        const hd = kit.plate(tex.dot, 1, 1, { additive: true, color: '#fff6dc', opacity: 0, gain: 1.6 }); hd.renderOrder = -5; haloG.add(hd);
+        SPARKS.push({ m, hd, b, p0: P.clone(), v: vel, life: R.range(2.6, 3.8), len: R.range(0.3, 0.46), w: R.range(0.032, 0.046), ph: R() * 6 }); } }
     const GLINTS = [[150, 37.7, 0.36], [28, 39.1, 0.3], [292, 40.5, 0.42]].map(([deg, t0, s], i) => { const m = kit.plate(tex.glint, 1, 1, { additive: true, billboard: true, color: i === 2 ? '#fff6e0' : GOLD, opacity: 0, gain: 1.2 }); const th = deg * DEG; m.position.set(Math.cos(th) * aH * 1.03, Math.sin(th) * bH * 1.03, 0.05); m.renderOrder = -5; haloG.add(m); return { m, t0, s }; });
 
     // ------------------------------------------------------------------ the neon tubes of the transition
     const off = (pts, du, dv) => pts.map(([u, v]) => [u + du, v + dv]);
     const T1 = [[-1.35, -0.98], [-0.78, -0.58], [-0.28, -0.14], [0.22, 0.24], [0.72, 0.5], [1.35, 0.7]];
     const TUBES = [
-      { n: neon(off(T1, 0, 0).map(([u, v]) => F(u, v, 0.55)), { r: 0.021 }), on: [29.0, 31.7], off: [30.1, 32.9] },
-      { n: neon(off(T1, -0.035, 0.06).map(([u, v]) => F(u, v, 0.3)), { r: 0.013, gain: 0.85 }), on: [29.3, 32.0], off: [30.4, 33.2] },
-      { n: neon(off(T1, 0.04, -0.07).map(([u, v]) => F(u, v, 0.8)), { r: 0.016, gain: 0.9 }), on: [29.6, 32.3], off: [30.7, 33.4] },
+      { n: neon(off(T1, 0, 0).map(([u, v]) => F(u, v, 0.55)), { r: 0.027 }), on: [29.0, 31.7], off: [30.1, 32.9] },
+      { n: neon(off(T1, -0.035, 0.06).map(([u, v]) => F(u, v, 0.3)), { r: 0.015, gain: 0.85 }), on: [29.3, 32.0], off: [30.4, 33.2] },
+      { n: neon(off(T1, 0.04, -0.07).map(([u, v]) => F(u, v, 0.8)), { r: 0.019, gain: 0.9 }), on: [29.6, 32.3], off: [30.7, 33.4] },
       // close to the lens: a big soft red glow sweeping over the top of the frame
-      { n: neon([[-1.4, 0.3], [-0.55, 0.74], [0.35, 0.86], [1.4, 0.6]].map(([u, v]) => F(u, v, 2.3)), { r: 0.03, blur: 0.05, gain: 0.8, head: 0.3 }), on: [30.0, 32.4], off: [30.9, 33.4] },
+      { n: neon([[-1.4, 0.3], [-0.55, 0.74], [0.35, 0.86], [1.4, 0.6]].map(([u, v]) => F(u, v, 2.3)), { r: 0.026, blur: 0.035, gain: 0.45, head: 0.3 }), on: [30.0, 32.4], off: [30.9, 33.4] },
       // far behind: a thin line crossing the other way, for depth
       { n: neon([[1.3, 0.95], [0.5, 0.45], [-0.3, 0.02], [-1.3, -0.62]].map(([u, v]) => F(u, v, -3.2)), { r: 0.014, gain: 0.7, head: 0.4, order: -4 }), on: [29.8, 32.6], off: [31.0, 33.6] },
     ]; TUBES.forEach((t) => group.add(t.n.mesh));
@@ -295,7 +313,7 @@ export default {
       W3.group.visible = rf < 32.6;
       if (W3.group.visible) {
         W3.group.rotation.set(-0.24 - 0.9 * outN, 0.3 - 0.012 * (rf - 24), -0.02); W3.group.position.set(0, -0.4 * outN, -2.4 * outN);
-        const oN = 1 - prog(rf, 30.5, 31.9, 'io2');
+        const oN = 1 - prog(rf, 30.2, 31.3, 'io2');
         const flick = track([[29.1, 1], [29.32, 0.42], [29.6, 1.0], [29.9, 0.32], [30.2, 0.78], [30.65, 0.18], [31.4, 0.06]], rf);
         for (let i = 0; i < W3.n; i++) { const L = W3.letters[i]; const t0 = 21.15 + i * st3; const t = (rf - t0) / 1.65;
           if (t <= 0) { W3.pose(i, { o: 0 }); continue; }
@@ -304,7 +322,8 @@ export default {
           const ig = track([[-0.6, 0.5], [0, 1.45, 'in2'], [0.35, 0.72], [0.7, 1.16], [1.25, 1.0]], rf - (t0 + 1.24));
           L.mesh.material.uniforms.uGain.value = ig * flick * (1 + 0.07 * pulse(rf, 26.8, 3, 0.4)); }
         W3.sweep(prog(rf, 25.4, 27.6), 0.5);
-        pool3.material.opacity = 0.42 * prog(rf, 22.4, 24.2, 'out2') * (0.35 + 0.65 * flick) * oN;
+        orn3.update(rf, prog(rf, 23.6, 25.2, 'out2') * (1 - prog(rf, 28.8, 30.0)));
+        pool3.material.opacity = 0.24 * prog(rf, 22.4, 24.2, 'out2') * (0.35 + 0.65 * flick) * oN;
         fx3.update(rf);
       }
 
@@ -323,7 +342,7 @@ export default {
           const ig = track([[-0.7, 0.45], [0, 1.35, 'in2'], [0.4, 0.86], [0.8, 1.08], [1.3, 1.0]], rf - (t0 + 1.5));
           L.mesh.material.uniforms.uGain.value = ig * (1 + 0.06 * pulse(rf, 40.5, 3, 0.4) + 0.55 * glowOut); }
         W4.sweep(prog(rf, 38.0, 40.2), 0.55);
-        pool4.material.opacity = 0.45 * prog(rf, 34.5, 36.8, 'out2') * (0.6 + 0.4 * fadeG);
+        pool4.material.opacity = 0.24 * prog(rf, 34.5, 36.8, 'out2') * (0.6 + 0.4 * fadeG);
         fx4.update(rf);
       }
       // halo: sweeps in, closes round the word, breathes, then flies past the lens in the dive
@@ -331,9 +350,10 @@ export default {
       const hb = 1 + 0.12 * Math.sin(rf * 0.9) * prog(rf, 37, 39) + 0.35 * pulse(rf, 40.5, 3, 0.4);
       if (rf < H_ON[0]) halo.mesh.visible = false; else halo.set(prog(rf, H_OFF[0], H_OFF[1], 'in2') * uJ, headU(rf), hb * (1 + 0.4 * dive));
       if (rf < 33.6) halo2.mesh.visible = false; else halo2.set(1 - prog(rf, 33.6, 37.4, 'out2'), 1, hb);
-      for (const s of SPARKS) { const t = rf - s.b; const on = t > 0 && t < s.life; s.m.visible = on; if (!on) continue; const g = -0.03;
-        const x = s.p0.x + s.v.x * t, y = s.p0.y + s.v.y * t + 0.5 * g * t * t, z = s.p0.z + s.v.z * t; s.m.position.set(x, y, z);
-        s.m.rotation.z = Math.atan2(s.v.y + g * t, s.v.x); const k = t / s.life; s.m.scale.set(s.len * (1 - 0.55 * k), s.w, 1); s.m.material.opacity = Math.pow(1 - k, 1.4) * (0.75 + 0.25 * Math.sin(t * 9 + s.ph)); }
+      for (const s of SPARKS) { const t = rf - s.b; const on = t > 0 && t < s.life; s.m.visible = s.hd.visible = on; if (!on) continue; const g = -0.03;
+        const x = s.p0.x + s.v.x * t, y = s.p0.y + s.v.y * t + 0.5 * g * t * t, z = s.p0.z + s.v.z * t; const a = Math.atan2(s.v.y + g * t, s.v.x); const k = t / s.life; const L = s.len * (1 - 0.55 * k);
+        s.m.position.set(x - Math.cos(a) * L * 0.35, y - Math.sin(a) * L * 0.35, z); s.m.rotation.z = a; s.m.scale.set(L, s.w, 1); const o = Math.pow(1 - k, 1.3) * (0.78 + 0.22 * Math.sin(t * 9 + s.ph)); s.m.material.opacity = o;
+        s.hd.position.set(x, y, z + 0.01); s.hd.scale.setScalar(s.w * 1.6); s.hd.material.opacity = o; }
       for (const g of GLINTS) { const k = pulse(rf, g.t0, 1.8, 0.45) * (1 - dive); g.m.visible = k > 0.01; const s = g.s * (0.4 + 0.8 * k); g.m.scale.set(s, s, 1); g.m.material.opacity = k; g.m.material.rotation = 0.3 + (rf - g.t0) * 0.15; }
 
       // ---------------- the tubes
@@ -341,8 +361,9 @@ export default {
 
       // ---------------- field, bokeh, shafts, dust
       fu.uT.value = 0.35 * (rf - 21); fu.uMatchT.value = rf / 30; fu.uMatch.value = 1 - prog(rf, 21.3, 24.6, 'io2');
-      fu.uFront.value = 0.5 + 2.8 * Math.max(0, rf - 22.4); fu.uAmp.value = lerp(1, 0.6, kT);
-      fu.uPool.value = 0.55 * prog(rf, 22.6, 24.4, 'out2') * (1 - 0.6 * prog(rf, 29.4, 31.2)) + 0.25 * prog(rf, 33.5, 36.8) + 0.5 * prog(rf, 44, 48, 'in2');
+      fu.uFront.value = 0.5 + 2.8 * Math.max(0, rf - 22.4); fu.uAmp.value = lerp(1, 0.5, kT);
+      fu.uPool.value = 0.24 * prog(rf, 22.6, 24.4, 'out2') * (1 - 0.6 * prog(rf, 29.4, 31.2)) + 0.1 * prog(rf, 33.5, 36.8) + 0.85 * prog(rf, 44.5, 48, 'in2');
+      fu.uGain.value = lerp(0.95, 0.72, kT) + 0.75 * prog(rf, 44.5, 48, 'in2'); fu.uPoolR.value = 2.4 + 3.2 * prog(rf, 44, 48, 'in2');
       const pb = (b) => (rf > b ? Math.exp(-(rf - b) / 2.4) : 0);
       fu.uPulse.value = 0.55 * pb(26.8) + 0.45 * pb(40.5); fu.uPulseR.value = rf < 40 ? 0.6 + 3.0 * (rf - 26.8) : 0.6 + 3.0 * (rf - 40.5);
       nightBokeh.u.uT.value = rf; nightBokeh.u.uOpacity.value = 0.32 * prog(rf, 21.5, 25);
@@ -369,9 +390,9 @@ export default {
       const post = {
         exposure: 1, contrast: lerp(1.06, 1.13, intro), saturation: lerp(1.12, 1.1, intro),
         bloom: lerp(0.72, 0.5, intro) + 0.18 * dive, bloomThreshold: lerp(0.8, 0.84, intro), bloomTint: [1, 0.42, 0.48],
-        vignette: lerp(0.9, 0.82, intro) + 0.05 * endK, chroma: 0.0012 + 0.001 * trans + 0.003 * dive,
+        vignette: lerp(0.9, 0.82, intro) + 0.05 * endK, chroma: lerp(0.0012, 0.0007, kT) + 0.0006 * trans + 0.003 * dive,
         streak: 0.5, rays: 0.1 + 0.08 * trans + 0.3 * dive, raysCenter: [sx, sy],
-        zoomBlur: 0.06 * trans + 0.72 * prog(rf, 44.4, 48, 'in2'), zoomCenter: [sx, sy],
+        zoomBlur: 0.72 * prog(rf, 44.4, 48, 'in2'), zoomCenter: [sx, sy],          // (any zoom blur also multiplies chroma x5: only in the dive)
         bars: track([[21, 0], [33, 0], [37, 0.045, 'io2'], [48, 0.05]], rf), barsAlpha: 0.94, barsGlow: lerp(0.42, 0.32, endK), barsGlowColor: [lerp(1, 0.92, endK), lerp(0.18, 0.96, endK), lerp(0.24, 1.0, endK)],
         leak: 0.1 * intro * (1 - kT * 0.5), leakColor: [1, 0.1, 0.16], leakPos: [0.96, 0.92], leakSize: 0.75,
         grain: 0.045, dust: 0.24, scratches: 0.1, sharpen: 0.35,

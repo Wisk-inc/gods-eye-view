@@ -83,7 +83,7 @@ void main(){
   dens *= uAmt;
   vec3 col = mix(uDeep, uMid, smoothstep(0.06, 0.5, dens));
   col = mix(col, uHot, smoothstep(0.5, 1.05, dens));
-  col = mix(col, uWhite, smoothstep(0.95, 1.5, dens) * fil);
+  col = mix(col, uWhite, smoothstep(1.15, 1.7, dens) * fil);
   col *= 0.72 + 0.56 * smoothstep(0.25, 0.8, w1.b);                                                  // uneven light inside the smoke
   float grey = smoothstep(0.05, 0.75, p.x + (w1.g - 0.5) * 0.5);                                   // one side: a dull wine haze
   col = mix(col, vec3(dot(col, vec3(0.55, 0.3, 0.15))) * vec3(1.0, 0.42, 0.46), grey * 0.55);
@@ -374,10 +374,11 @@ export default {
     };
     const glowSprite = (map, color, o = {}) => { const m = kit.plate(map, 1, 1, { color, additive: true, opacity: 0, billboard: true, depthTest: o.depthTest ?? true, gain: o.gain ?? 1 }); if (o.order !== undefined) m.renderOrder = o.order; return m; };
     const setRGB = (c, a, b, t) => c.setRGB(lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t));
-    // impact FX sits behind the word: everything is drawn before the letters, its soft flash even before the smoke nest
-    const tuneFx = (fx, flash = 0.6) => fx.group.children.forEach((grp) => { grp.children.forEach((m) => { m.renderOrder = -7; }); const glow = grp.children[grp.children.length - 1]; glow.renderOrder = -7.8; glow.material.color.multiplyScalar(flash); });
+    // impact FX sits behind the word: everything is drawn before the letters, its soft flash even before the smoke nest; its star
+    // glints are switched off (they would sparkle in the gaps between the letters)
+    const tuneFx = (fx, flash = 0.6) => fx.group.children.forEach((grp) => { grp.children.forEach((m) => { m.renderOrder = -7; if (m.material && m.material.map === tex.glint) m.visible = false; }); const glow = grp.children[grp.children.length - 1]; glow.renderOrder = -7.8; glow.material.color.multiplyScalar(flash); });
     // the impact rings of kit.impactFX are authored for real time; in the stretched holds they would crawl, so they run faster
-    const fxAt = (fx, rf, t0, speed) => fx.update(rf < t0 ? rf : t0 + (rf - t0) * speed);
+    const fxAt = (fx, rf, t0, speed, ringK = 0.65) => { fx.update(rf < t0 ? rf : t0 + (rf - t0) * speed); fx.group.children.forEach((grp) => grp.children.forEach((m) => { if (m.material && (m.material.map === tex.ringThin || m.material.map === tex.ring)) m.material.opacity *= ringK; })); };
     // parallel hairline next to a stroke (offset to the left of its direction of travel)
     const offs = (pts, o) => pts.map((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; const tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1; return [p[0] - (ty / l) * o, p[1] + (tx / l) * o]; });
     // small star glints just outside the outer corners of a word, BEHIND its face (the letters occlude their arms)
@@ -388,7 +389,7 @@ export default {
     // neon bleed: the word's own silhouette (its front caps, drawn into a canvas) blurred tight + wide, as an additive plate
     // just behind the letters. It hugs the real glyphs, so the red reads as light spilling round the edges, not a blob.
     const wordBleed = (W, o = {}) => {
-      const { pad = 0.55, ppu = 120, tight = 0.03, wide = 0.15, wideAmt = 0.7 } = o;
+      const { pad = 0.55, ppu = 120, tight = 0.025, wide = 0.13, wideAmt = 0.45 } = o;
       const hw = W.width / 2 + pad, hh = 0.5 + pad; const cw = Math.ceil(hw * 2 * ppu), ch = Math.ceil(hh * 2 * ppu);
       const mk = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return [c, c.getContext('2d')]; };
       const [m, g] = mk(); g.fillStyle = '#ffffff';
@@ -410,15 +411,15 @@ export default {
     };
     // gold halo ring (see FS_HALO), semi-axes ax, ay
     const haloRing = (ax, ay, o = {}) => {
-      const { w = 0.0072, pad = 0.4 } = o;
-      const u = { ...LENS, tNoise: U(tex.noise), uAx: U(new THREE.Vector2(ax, ay)), uW: U(w), uLo: U(COL('#7a4a12')), uHi: U(COL(GOLD_HI)), uHot: U(COL(IVORY)), uAmt: U(0), uGlint: U(0), uSpin: U(0), uHair: U(1), uGlowAmt: U(0.16), uLit: U(2.2) };
+      const { w = 0.0085, pad = 0.4 } = o;
+      const u = { ...LENS, tNoise: U(tex.noise), uAx: U(new THREE.Vector2(ax, ay)), uW: U(w), uLo: U(COL('#9a6a24')), uHi: U(COL('#ffe2a2')), uHot: U(COL(IVORY)), uAmt: U(0), uGlint: U(0), uSpin: U(0), uHair: U(1), uGlowAmt: U(0.26), uLit: U(2.2) };
       const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * (ax + pad), 2 * (ay + pad)), new THREE.ShaderMaterial({ vertexShader: VS_LENSP, fragmentShader: FS_HALO, uniforms: u, transparent: true, depthWrite: false, side: THREE.DoubleSide, ...ADD }));
       m.u = u; m.frustumCulled = false; return m;
     };
 
     // ================================================================== SHOT 1 — s01
-    const PAL_SWIRL = ['#070103', '#5a000f', '#e8162e', '#ffd6dc'].map(COL), PAL_DARK = ['#020001', '#150207', '#430511', '#a3051c'].map(COL);
-    const bg1 = inkPlane({ c: ['#020001', '#150207', '#430511', '#a3051c'], scale: 5.4, tint: '#6a0018', tintAmt: 0.3, off: [0.3, 0.7], vig: 0.8, crease: 0.4, pool: NEON, poolR: 0.2 }); bg1.position.z = -9; shot1.add(bg1);
+    const PAL_SWIRL = ['#050102', '#4a000c', '#d8122a', '#ffc8d0'].map(COL), PAL_DARK = ['#010000', '#0b0103', '#2a030a', '#760616'].map(COL);
+    const bg1 = inkPlane({ c: ['#010000', '#0b0103', '#2a030a', '#760616'], scale: 5.4, tint: '#4a000e', tintAmt: 0.25, off: [0.3, 0.7], vig: 0.85, crease: 0.45, pool: NEON, poolR: 0.17 }); bg1.position.z = -9; shot1.add(bg1);
 
     // the word: white-hot faces, neon-red bevel rim, crimson sides falling to black wine
     const ST1 = { top: '#ffffff', bot: '#ffe6ea', side: CRIMSON, sideDark: '#140105', rim: NEON, gain: 1.0, chrome: 0.1, rimAmt: 1.0 };
@@ -434,7 +435,7 @@ export default {
     const splash = new THREE.Group(); splash.position.set(0, 0, -1.1); shot1.add(splash);
     const SX = (hw1 + 0.62) / 1.62, SY = 0.66;
     const burstU = { tNoise: U(tex.noise), uT: U(0), uR: U(0.1), uW: U(0.08), uAmt: U(0), uDark: U(0), uCore: U(0), uSeed: U(0.37), uStretch: U(new THREE.Vector2(SX, SY)),
-      uDeep: U(COL('#1c0006')), uMid: U(COL('#8a0016')), uHot: U(HDR(NEON, 1.05)), uWhite: U(COL('#ffd2d8')), uCoreCol: U(COL('#ff5a66')) };
+      uDeep: U(COL('#120004')), uMid: U(COL('#52000d')), uHot: U(HDR(NEON, 0.85)), uWhite: U(COL('#ffb4be')), uCoreCol: U(COL('#ff3a4c')) };
     const burst = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.ShaderMaterial({ vertexShader: VS_UV, fragmentShader: FS_BURST, uniforms: burstU, transparent: true, depthWrite: false, ...OVER }));
     burst.scale.set(SX, SY, 1); burst.renderOrder = -10; splash.add(burst);
     const coreGlow = glowSprite(tex.glow, '#ff4a58', { order: -9 }); coreGlow.position.set(0, 0, 0.2); splash.add(coreGlow);
@@ -442,12 +443,7 @@ export default {
     const PUFFS = []; { const R = rng(77); const cols = [NEON, CRIMSON, '#ff6a74', '#6a0016', '#ffc4ca', '#e0102a', '#8a0a1c'];
       for (let i = 0; i < 12; i++) { const m = glowSprite(R() < 0.65 ? tex.smoke : tex.glow, R.pick(cols), { order: -8 }); m.material.rotation = R() * TAU; splash.add(m);
         PUFFS.push({ m, ang: R() * TAU, sp: R.range(0.6, 1.25), z: R.range(-0.5, 0.25), s: R.range(0.3, 0.75), delay: R.range(0, 1.4), spin: R.range(-0.2, 0.2) }); } }
-    // hot filaments out of the core at the hit
-    const ARCS = []; { const R = rng(41);
-      for (let i = 0; i < 5; i++) { const a0 = (i / 5) * TAU + R.range(-0.3, 0.3), L = R.range(1.4, 2.3); const pts = []; let a = a0;
-        for (let k = 0; k <= 8; k++) { const rr = 0.3 + (k / 8) * L; a += R.range(-0.2, 0.2); const j = k ? R.range(-0.09, 0.09) : 0; pts.push([(Math.cos(a) * rr - Math.sin(a) * j) * SX * 0.9, (Math.sin(a) * rr + Math.cos(a) * j) * 0.72, 0.3 + R.range(-0.15, 0.15)]); }
-        const rb = kit.ribbon(pts, { width: R.range(0.012, 0.024), taper: 0.5, color: i % 2 ? '#ff5a66' : '#ffd6dc', gain: 1.3, segments: 64, shade: 0 }); rb.mesh.visible = false; splash.add(rb.mesh); ARCS.push({ rb, t0: 4.3 + R.range(0, 1.2), dur: R.range(0.9, 1.4) }); } }
-    const speck1 = motes(260, { burst: { origin: [0, 0, 0.3], reach: 2.5, z0: -0.25, z1: 0.75, sx: SX * 0.95, sy: 0.7 }, seed: 5, size: [0.007, 0.03], sizePow: 3, colors: [HOT, NEON, '#ff7a5c'], opacity: 0.9, floor: 0.12, maxFrac: 0.13 }); speck1.renderOrder = 5; splash.add(speck1);
+    const speck1 = motes(180, { burst: { origin: [0, 0, 0.3], reach: 2.5, z0: -0.25, z1: 0.75, sx: SX * 0.95, sy: 0.7 }, seed: 5, size: [0.007, 0.03], sizePow: 3, colors: [HOT, NEON, '#ff7a5c'], opacity: 0.75, floor: 0.12, maxFrac: 0.13 }); speck1.renderOrder = 5; splash.add(speck1);
     const ink1 = motes(70, { burst: { origin: [0, 0, 0.4], reach: 2.3, z0: -0.2, z1: 0.5, sx: SX * 0.95, sy: 0.7 }, seed: 9, size: [0.012, 0.05], sizePow: 2.4, colors: ['#000000', '#0d0204', '#1c0408'], opacity: 0.92, ink: true, maxFrac: 0.1 }); ink1.renderOrder = 4; splash.add(ink1);
     // crimson light shafts fanning out behind the word
     const beams1 = kit.beams({ center: [0, 0, -1.9], count: 9, len: 6.2, color: '#e0142c', opacity: 0.12, seed: 3 }); beams1.group.children.forEach((m) => { m.renderOrder = -9; }); shot1.add(beams1.group);
@@ -478,10 +474,11 @@ export default {
 
     // air: fine dust lit by the neon at every depth + a few large soft bokeh discs near the lens (none ever in front of the word)
     const dust1 = motes(240, { box: [10, 6, 7], center: [0, 0, 0.2], size: [0.008, 0.022], seed: 31, colors: ['#ffc8cf', '#ffffff', '#ff6a74'], opacity: 0.6, floor: 0.07, vel: [0.012, 0.02, 0.008], sway: 0.1, maxFrac: 0.16 }); dust1.renderOrder = 4; shot1.add(dust1);
+    const ember1 = motes(70, { box: [8.5, 5.2, 3.2], center: [0, -0.2, 0.1], size: [0.004, 0.012], sizePow: 1.6, seed: 43, colors: [NEON, '#ff6a3a', '#ffe0d2'], opacity: 0.9, floor: 0.25, vel: [0.004, 0.05, 0.002], sway: 0.12, maxFrac: 0.08 }); ember1.renderOrder = 4; shot1.add(ember1);
     const bokeh1 = motes(30, { box: [7.5, 4.6, 3.2], center: [0, 0, 1.7], size: [0.03, 0.075], seed: 37, colors: [NEON, '#ffd6dc', CRIMSON], opacity: 0.45, floor: 0.2, vel: [0.016, 0.01, 0.004], sway: 0.12, maxFrac: 0.2 }); bokeh1.renderOrder = 4; shot1.add(bokeh1);
 
     // ================================================================== SHOT 2 — s02
-    const bg2 = inkPlane({ c: ['#030001', '#1a0207', '#4a0612', '#8e0a1e'], scale: 5.6, off: [2.1, 4.4], lo: 0.4, hi: 0.72, crease: 0.42, vig: 0.85, tint: '#3a0410', tintAmt: 0.4, pool: NEON, poolR: 0.17 }); bg2.position.z = -7; shot2.add(bg2);
+    const bg2 = inkPlane({ c: ['#020001', '#0f0104', '#30040f', '#6a0818'], scale: 5.6, off: [2.1, 4.4], lo: 0.4, hi: 0.72, crease: 0.45, vig: 0.88, tint: '#2a020a', tintAmt: 0.4, pool: NEON, poolR: 0.16 }); bg2.position.z = -7; shot2.add(bg2);
     const beams2 = kit.beams({ center: [0, 0, -1.6], count: 8, len: 5.4, color: '#e0142c', opacity: 0.14, seed: 5 }); beams2.group.children.forEach((m) => { m.renderOrder = -9; }); shot2.add(beams2.group);
     const ST2 = { top: '#ffffff', bot: '#e6d8db', side: '#9a0018', sideDark: '#100103', rim: NEON, gain: 1.0, chrome: 0.4, rimAmt: 1.0 };
     const W2 = kit.word(words.s02 || 'THE', { size: 1, depth: 0.5, style: ST2, seed: 2 }); shot2.add(W2.group);
@@ -490,7 +487,7 @@ export default {
     const C2 = clamp((0.42 * ASPECT) / W2.width, 0.22, 0.36);                 // cap height when the word has landed
     const nest2 = nestPlane(hw2 + 0.16, 0.62, 0.62, '#040001', 0.23); nest2.position.z = -0.72; W2.group.add(nest2);
     const halo2 = kit.plate(tex.glow, W2.width * 2.0, 2.2, { color: NEON, additive: true, opacity: 0 }); halo2.position.z = -0.6; halo2.renderOrder = -7.3; W2.group.add(halo2);
-    const bleed2 = wordBleed(W2, { wideAmt: 0.6 });
+    const bleed2 = wordBleed(W2, { wideAmt: 0.4 });
     const orn2 = kit.ornaments({ center: [0, 0, 0], radius: (hw2 + 0.46) / 0.918, color: '#ff4a58', opacity: 0.16, seed: 8 }); orn2.group.scale.set(1, 0.72, 1); orn2.group.children.forEach((m) => { m.position.z = -0.6; m.renderOrder = -7.2; }); W2.group.add(orn2.group);
     const fxS2 = Math.min(1.2, 0.6 + hw2 * 0.45);
     const fx2 = kit.impactFX([{ rf: 13.35, at: [0, 0, -0.66], size: fxS2, color: NEON, sparks: 20 }]); tuneFx(fx2, 0.45); W2.group.add(fx2.group);
@@ -515,6 +512,7 @@ export default {
     ]; FL2.forEach((f) => { f.m.position.set(f.p[0], f.p[1], f.p[2]); shot2.add(f.m); });
     const dust2 = motes(220, { box: [10, 6, 7], center: [0, 0, 0.2], size: [0.008, 0.022], seed: 61, colors: ['#ffc2c8', '#ffffff', '#ff6a6a'], opacity: 0.6, floor: 0.07, vel: [0.014, 0.014, 0.004], sway: 0.1, keep: KEEP2, maxFrac: 0.16 }); dust2.renderOrder = 4; shot2.add(dust2);
     const ember2 = motes(130, { box: [9, 6, 5], center: [0, 0, 0.6], size: [0.012, 0.045], sizePow: 2.6, seed: 67, colors: [NEON, '#ff5a3a', '#ffd2c4'], opacity: 0.9, floor: 0.2, vel: [0.008, 0.036, 0.003], sway: 0.16, keep: KEEP2, maxFrac: 0.2 }); ember2.renderOrder = 4; shot2.add(ember2);
+    const emberFine2 = motes(170, { box: [8.5, 5.2, 3.2], center: [0, -0.2, 0.1], size: [0.004, 0.013], sizePow: 1.6, seed: 71, colors: [NEON, '#ff6a3a', '#ffe0d2'], opacity: 1.0, floor: 0.25, vel: [0.004, 0.055, 0.002], sway: 0.12, keep: KEEP2, maxFrac: 0.08 }); emberFine2.renderOrder = 4; shot2.add(emberFine2);
     // hand-off: the ripple field of section B, matched to its ring spacing and phase
     const ripU = { uA: U(COL('#4a0a0a')), uB: U(COL('#0b0001')), uC: U(COL('#8e1f1b')), uTime: U(0), uRings: U(30), uVig: U(0.98), uAlpha: U(0) };
     const ripple = new THREE.Mesh(new THREE.PlaneGeometry(60, 34), new THREE.ShaderMaterial({ vertexShader: VS_UV, fragmentShader: FS_RIPPLE, uniforms: ripU, transparent: true, depthWrite: false })); ripple.position.z = -1.6; ripple.renderOrder = -8.5; shot2.add(ripple);
@@ -541,6 +539,8 @@ export default {
     const leakTL = hudPlate(tex.glow, -AX * 0.97, 0.54, 1.0, 0.7, NEON, 92), leakT = hudPlate(tex.streak, -AX * 0.2, 0.497, 1.5, 0.026, '#ffc2ca', 93, 1.2), leakTR = hudPlate(tex.glow, AX * 0.99, 0.42, 0.4, 1.0, CRIMSON, 92), leakBR = hudPlate(tex.glow, AX * 0.95, -0.53, 1.0, 0.6, NEON, 92), leakL = hudPlate(tex.glow, -AX * 1.02, -0.1, 0.4, 1.1, '#e0102a', 92);
     // the opening: a neon light passes the lens like a sign seen from a moving car (two anamorphic streaks)
     const passA = hudPlate(tex.streak, 0, 0.08, 2.6, 0.09, NEON, 88, 1.0), passB = hudPlate(tex.streak, 0, 0.08, 1.6, 0.018, '#ffe0e4', 88, 1.0);
+    // the shot change: while the ink is closed, a neon light burns in the last opening (it hides the cut) and opens shot 2
+    const cutGlow = hudPlate(tex.glow, 0, 0, 0.5, 0.5, NEON, 87, 1.0), cutCore = hudPlate(tex.core, 0, 0, 0.16, 0.16, '#ffd6dc', 88, 1.0), cutStreak = hudPlate(tex.streak, 0, 0, 1.5, 0.035, '#ff5a68', 88, 1.0), cutHair = hudPlate(tex.streak, 0, 0, 0.9, 0.007, '#ffe6ea', 89, 1.0);
 
     // ------------------------------------------------------------------ camera
     const camObj = new THREE.PerspectiveCamera(40, ASPECT, 0.05, 600); const fwd = V3(); const cam = { pos: V3(), tgt: V3(), roll: 0, fov: 40, aperture: 0, focus: 4 }; const _wc = V3();
@@ -552,7 +552,7 @@ export default {
       // ---------------- camera
       if (S1) {
         // the slam: the camera starts a little close and settles back as the letters land; then a slow, decelerating pull-back
-        const cap = C1 * (0.93 + 0.07 * Math.exp(-Math.max(0, rf - 3.8) / 3.2)) * (1 + 0.13 * gexp(rf - 2.5, 1.15, 1.6)) * lerp(1, 0.9, prog(rf, 7.6, 10.6, 'io2'));
+        const cap = C1 * (0.93 + 0.07 * Math.exp(-Math.max(0, rf - 3.8) / 3.2)) * (1 + 0.09 * gexp(rf - 2.5, 1.15, 1.6)) * lerp(1, 0.9, prog(rf, 7.6, 10.6, 'io2'));
         const d = 1 / (0.7279 * cap);
         orbit = lerp(-0.05, 0.055, prog(rf, 3.0, 9.0, 'io2'));                         // small arc around the word: parallax between the layers
         const tx = 0.12 * gexp(rf - 2.0, 1.4, 1.6), ty = 0.05 * gexp(rf - 2.0, 1.4, 1.6);
@@ -576,10 +576,10 @@ export default {
       // ---------------- shot 1
       if (S1) {
         const tb = rf - 4.05;                                                          // frames since the smoke ring ignites
-        const sw = 1 - prog(rf, 0.8, 3.3, 'io2');                                      // 1 = liquid ink streaming past, 0 = smoky field
+        const sw = 1 - prog(rf, 1.6, 3.7, 'io2');                                      // 1 = liquid ink streaming past, 0 = smoky field
         const u = bg1.u; setRGB(u.uC0.value, PAL_DARK[0], PAL_SWIRL[0], sw); setRGB(u.uC1.value, PAL_DARK[1], PAL_SWIRL[1], sw); setRGB(u.uC2.value, PAL_DARK[2], PAL_SWIRL[2], sw); setRGB(u.uC3.value, PAL_DARK[3], PAL_SWIRL[3], sw);
-        u.uAniso.value.set(lerp(1, 0.2, sw), 1); u.uRot.value = 0.62; u.uLo.value = lerp(0.42, 0.4, sw); u.uHi.value = lerp(0.76, 0.74, sw); u.uGain.value = lerp(0.95, 1.0, sw); u.uTime.value = rf * 0.16; u.uTintAmt.value = 0.3 * (1 - sw); u.uScale.value = lerp(5.4, 4.6, sw);
-        u.uPool.value = (0.5 * prog(rf, 3.8, 5.0) + 0.3 * pulse(rf, 4.35, 2.6, 0.3) + 0.06 * pulse(rf, 6.9, 1.6, 0.3)) * (1 - prog(rf, 8, 10)) + 0.25 * sw; u.uVig.value = lerp(0.8, 0.45, sw); u.uPoolC.value.set(0.0, 0.02);
+        u.uAniso.value.set(lerp(1, 0.2, sw), 1); u.uRot.value = 0.62; u.uLo.value = lerp(0.42, 0.4, sw); u.uHi.value = lerp(0.76, 0.74, sw); u.uGain.value = lerp(0.95, 1.0, sw); u.uTime.value = rf * 0.16; u.uTintAmt.value = 0.25 * (1 - sw); u.uScale.value = lerp(5.4, 4.6, sw);
+        u.uPool.value = (0.34 * prog(rf, 3.4, 5.0) + 0.24 * pulse(rf, 4.35, 2.6, 0.3) + 0.05 * pulse(rf, 6.9, 1.6, 0.3)) * (1 - prog(rf, 8, 10)) + 0.2 * sw; u.uVig.value = lerp(0.8, 0.45, sw); u.uPoolC.value.set(0.0, 0.02);
         // word: un-rotates as it lands, then keeps turning very slowly; tips back and sinks away on the exit
         const tilt = (17.5 + 22 * gexp(rf, 2.1, 1.6) - 0.95 * ramp(rf - 3.8, 1.0) - 2.0 * Math.pow(Math.max(0, rf - 7.6), 1.4)) * DEG;
         const exit = prog(rf, 7.6, 10.4, 'in2');
@@ -591,8 +591,8 @@ export default {
         for (let i = 0; i < W1.n; i++) { const L = W1.letters[i]; const t0 = 2.55 + i * st1, t1 = 3.55 + i * st1;
           const k = rf <= t0 ? 1 : 1 - ease.outBackSoft(sat((rf - t0) / (t1 - t0)));
           const bump = Math.exp(-Math.pow((rf - (t1 + 0.1)) / 0.22, 2)); const wv = Math.sin(rf * 1.3 + i * 1.7) * 0.006 * prog(rf, 4.6, 5.6);
-          W1.pose(i, { z: k * 1.0 * (0.8 + 0.4 * L.rnd), y: wv + k * (L.rnd - 0.5) * 0.22, rz: k * (L.rnd2 - 0.5) * 0.45, s: 1 + k * 0.1 - 0.03 * bump, o: sat((rf - t0) / 0.3) * fadeOut }); }
-        W1.gain(track([[2.5, 1.5], [3.6, 1.42], [4.4, 1.3, 'out2'], [5.6, 1.15, 'out2'], [7.6, 1.12], [9.2, 0.9]], rf) + 0.05 * pulse(rf, 5.25, 1.4, 0.3) + 0.06 * pulse(rf, 6.9, 1.6, 0.3));
+          W1.pose(i, { z: k * 0.78 * (0.8 + 0.4 * L.rnd), y: wv + k * (L.rnd - 0.5) * 0.22, rz: k * (L.rnd2 - 0.5) * 0.45, s: 1 + k * 0.1 - 0.03 * bump, o: sat((rf - t0) / 0.1) * fadeOut }); }
+        W1.gain(track([[2.5, 1.45], [3.6, 1.38], [4.4, 1.26, 'out2'], [5.6, 1.08, 'out2'], [7.6, 1.06], [9.2, 0.88]], rf) + 0.05 * pulse(rf, 5.25, 1.4, 0.3) + 0.06 * pulse(rf, 6.9, 1.6, 0.3));
         W1.sweep(prog(rf, 5.4, 6.9), 0.38);
         nest1.u.uTime.value = rf * 0.1; nest1.u.uAmt.value = 0.94 * prog(rf, 2.6, 4.0) * (1 - prog(rf, 8.8, 10.2));
         wordGlow.material.opacity = 0.26 * prog(rf, 3.8, 4.6) * fadeOut;
@@ -600,26 +600,25 @@ export default {
         // the halo drops in right after the landing and settles (one soft overshoot in size, a little wobble in tilt)
         const th = rf - 4.2, hk = prog(rf, 4.15, 4.75, 'out2') * (1 - prog(rf, 8.0, 9.4));
         const sp = spring(th, 0.55, 3.2), spT = spring(th, 0.65, 2.7);
-        halo1.visible = hk > 0.003; halo1.scale.setScalar(1 + 0.32 * sp);
-        haloPivot.position.y = 0.1 + 0.22 * gexp(th, 0.6, 1.2);
+        halo1.visible = hk > 0.003; halo1.scale.setScalar(1 + 0.2 * sp);
+        haloPivot.position.y = 0.1 + 0.16 * gexp(th, 0.6, 1.2);
         halo1.rotation.set(-0.3 + 0.32 * spT, 0.12 * spring(th, 0.7, 3.1) * Math.sin(Math.max(0, th) * 3.1) + 0.05 * Math.sin(rf * 0.45), 0);
-        halo1.u.uAmt.value = 0.82 * hk * (1 + 0.6 * pulse(rf, 4.3, 1.2, 0.2)); halo1.u.uSpin.value = 0.9 + rf * 0.42; halo1.u.uGlint.value = 0.55 + 0.7 * pulse(rf, 5.25, 1.6, 0.3) + 0.5 * pulse(rf, 6.9, 1.6, 0.3);
+        halo1.u.uAmt.value = 1.0 * hk * (1 + 0.3 * pulse(rf, 4.3, 1.2, 0.2)); halo1.u.uSpin.value = 0.9 + rf * 0.42; halo1.u.uGlint.value = 0.55 + 0.7 * pulse(rf, 5.25, 1.6, 0.3) + 0.5 * pulse(rf, 6.9, 1.6, 0.3);
         fxAt(fx1, rf, 4.35, 2.4); tickGlints(GL1, rf);
         beams1.update(rf, prog(rf, 4.0, 5.0, 'out2') * (1 - prog(rf, 7.6, 9.2)));
         // splash
         const bu = burstU; burst.visible = tb > -0.05; bu.uT.value = Math.max(0, tb) * 6;
         bu.uR.value = 0.5 - 0.44 * Math.exp(-Math.max(0, tb) / 1.7);
         bu.uW.value = track([[4.05, 0.05], [5.0, 0.1], [6.5, 0.14], [9.0, 0.19]], rf);
-        bu.uAmt.value = track([[4.05, 0], [4.4, 1.2, 'out2'], [5.1, 0.95], [6.4, 0.78], [7.5, 0.62], [9, 0.25], [10, 0]], rf);
+        bu.uAmt.value = track([[4.05, 0], [4.4, 0.95, 'out2'], [5.1, 0.72], [6.4, 0.58], [7.5, 0.48], [9, 0.2], [10, 0]], rf);
         bu.uDark.value = track([[4.05, 0], [4.7, 0.82, 'out2'], [7.5, 0.82], [9.5, 0.5]], rf);
-        bu.uCore.value = track([[4.0, 0], [4.3, 1.1, 'out2'], [5.0, 0.2, 'out2'], [5.7, 0]], rf);
-        const cg = pulse(rf, 4.3, 1.7, 0.3); coreGlow.scale.set((2.4 + 3.4 * prog(rf, 4.0, 5.5)) * SX, 2.4 + 3.4 * prog(rf, 4.0, 5.5), 1); coreGlow.material.opacity = 0.42 * cg; coreGlow.visible = cg > 0.003;
+        bu.uCore.value = track([[4.0, 0], [4.3, 0.8, 'out2'], [5.0, 0.15, 'out2'], [5.7, 0]], rf);
+        const cg = pulse(rf, 4.3, 1.7, 0.3); coreGlow.scale.set((2.4 + 3.4 * prog(rf, 4.0, 5.5)) * SX, 2.4 + 3.4 * prog(rf, 4.0, 5.5), 1); coreGlow.material.opacity = 0.3 * cg; coreGlow.visible = cg > 0.003;
         for (const p of PUFFS) { const t = tb - p.delay * 0.6; if (t <= 0) { p.m.visible = false; continue; } p.m.visible = true; const dist = p.sp * (2.3 * (1 - Math.exp(-t * 0.5)) + 0.12 * t); const a = p.ang + p.spin * t * 0.2;
           p.m.position.set(Math.cos(a) * dist * SX, Math.sin(a) * dist * 0.7, p.z); const s = p.s * (0.55 + 0.3 * t); p.m.scale.set(s, s, 1); p.m.material.opacity = 0.42 * sat(t * 2.2) * sat(1 - (t - 3.2) / 3.2) * sat(dist * 1.4 - 0.5); }
-        for (const a of ARCS) a.rb.swoosh(rf, a.t0, a.t0 + a.dur * 0.55, a.t0 + a.dur * 0.45, a.t0 + a.dur);
         NQ.forEach((s) => s.n.swoosh(rf, s.on[0], s.on[1], s.off[0], s.off[1], 1 + 0.15 * pulse(rf, 6.9, 1.6, 0.3)));
-        speck1.u.uT.value = tb; ink1.u.uT.value = tb - 0.2; speck1.visible = ink1.visible = tb > 0; speck1.u.uOpacity.value = 0.9 * (1 - prog(rf, 8.2, 10)); ink1.u.uOpacity.value = 0.92 * (1 - prog(rf, 8.2, 10));
-        dust1.u.uT.value = rf; dust1.u.uOpacity.value = 0.6 * prog(rf, 2.6, 4.4) * (1 - prog(rf, 8.6, 10.3)); bokeh1.u.uT.value = rf; bokeh1.u.uOpacity.value = 0.45 * prog(rf, 3.2, 4.8) * (1 - prog(rf, 9, 10.4));
+        speck1.u.uT.value = tb; ink1.u.uT.value = tb - 0.2; speck1.visible = ink1.visible = tb > 0; speck1.u.uOpacity.value = 0.75 * (1 - prog(rf, 8.2, 10)); ink1.u.uOpacity.value = 0.92 * (1 - prog(rf, 8.2, 10));
+        dust1.u.uT.value = rf; dust1.u.uOpacity.value = 0.6 * prog(rf, 2.6, 4.4) * (1 - prog(rf, 8.6, 10.3)); bokeh1.u.uT.value = rf; bokeh1.u.uOpacity.value = 0.45 * prog(rf, 3.2, 4.8) * (1 - prog(rf, 9, 10.4)); ember1.u.uT.value = rf; ember1.u.uOpacity.value = 0.9 * prog(rf, 4.0, 5.0) * (1 - prog(rf, 8.6, 10.2));
         W1.group.updateMatrixWorld(true); KEEP1.uWordInv.value.copy(W1.group.matrixWorld).invert(); KEEP1.uCamL.value.copy(cam.pos).applyMatrix4(KEEP1.uWordInv.value);
         KEEP1.uKeep.value = prog(rf, 3.9, 4.4) * (1 - prog(rf, 8.4, 9.6));
       } else {
@@ -627,7 +626,7 @@ export default {
         const ap = gexp(rf - 10.5, 1.5, 1.6);
         const out = prog(rf, 17.5, 20.8, 'in2');                                       // exit: tip back and sink into the fog
         const u = bg2.u; u.uTime.value = rf * 0.14; u.uGain.value = track([[10.5, 0.75], [12.4, 0.95], [13.3, 1.0, 'out2'], [17.4, 0.96], [19.2, 0.6], [20.7, 0.35]], rf);
-        u.uPool.value = 0.55 * prog(rf, 10.7, 12.6, 'out2') * (1 - 0.7 * prog(rf, 17.5, 20)) + 0.14 * pulse(rf, 13.35, 2.4, 0.3) + 0.05 * pulse(rf, 16.1, 1.6, 0.3); u.uPoolC.value.set(0.0, -0.01);
+        u.uPool.value = 0.4 * prog(rf, 10.7, 12.6, 'out2') * (1 - 0.7 * prog(rf, 17.5, 20)) + 0.12 * pulse(rf, 13.35, 2.4, 0.3) + 0.04 * pulse(rf, 16.1, 1.6, 0.3); u.uPoolC.value.set(0.0, -0.01);
         const yaw = 0.44 * (1 - 0.45 * prog(rf, 13.3, 20.7, 'io2')) + 0.55 * ap;
         W2.group.rotation.set(-0.13 - 0.7 * out, -yaw, 0); W2.group.position.set(0, -0.12 * out, -2.6 * out);
         const st2 = Math.min(0.3, 0.75 / Math.max(1, W2.n - 1)); const outO = 1 - prog(rf, 19.3, 20.65, 'io2');
@@ -645,12 +644,12 @@ export default {
         const flK = track([[10.5, 0], [12.4, 0.5], [13.3, 0.85, 'out2'], [17.4, 0.85], [19.4, 0.2], [20.7, 0]], rf);
         for (const f of FL2) { const fl = 0.75 + 0.25 * wobble(rf * 0.7, f.ph); const s = f.s * (0.9 + 0.2 * wobble(rf * 0.5, f.ph + 9)); f.m.scale.set(s, s, 1); f.m.material.opacity = 0.5 * fl * flK; f.m.material.rotation = f.ph + rf * 0.03; }
         const air = track([[10.5, 0], [11.4, 0.4], [12.8, 1], [17.6, 1], [19.6, 0.4], [20.7, 0]], rf);
-        dust2.u.uT.value = rf; dust2.u.uOpacity.value = 0.6 * air; ember2.u.uT.value = rf; ember2.u.uOpacity.value = 0.9 * air;
+        dust2.u.uT.value = rf; dust2.u.uOpacity.value = 0.6 * air; ember2.u.uT.value = rf; ember2.u.uOpacity.value = 0.8 * air; emberFine2.u.uT.value = rf; emberFine2.u.uOpacity.value = air;
         const dd = cam.pos.z + 1.6; ripU.uTime.value = rf / 30; ripU.uRings.value = 241.1 / Math.max(1, dd); ripU.uAlpha.value = track([[17.5, 0], [19.3, 0.55, 'io2'], [20.75, 0.97, 'lin']], rf); ripple.visible = ripU.uAlpha.value > 0.002;
         W2.group.updateMatrixWorld(true); KEEP2.uWordInv.value.copy(W2.group.matrixWorld).invert(); KEEP2.uCamL.value.copy(cam.pos).applyMatrix4(KEEP2.uWordInv.value);
         KEEP2.uKeep.value = prog(rf, 12.6, 13.2) * (1 - prog(rf, 19.6, 20.6));
       }
-      rainU.uT.value = rf * 0.11; rainU.uAmt.value = track([[0, 0.12], [3, 0.2], [8, 0.2], [9.6, 0.08], [11.6, 0.08], [13, 0.2], [17.4, 0.18], [19, 0.05], [20.7, 0]], rf);
+      rainU.uT.value = rf * 0.11; rainU.uAmt.value = track([[0, 0.1], [3, 0.13], [8, 0.13], [9.6, 0.06], [11.6, 0.06], [13, 0.14], [17.4, 0.13], [19, 0.04], [20.7, 0]], rf);
 
       // ---------------- HUD
       camObj.position.copy(cam.pos); camObj.up.set(0, 1, 0); camObj.lookAt(cam.tgt); if (cam.roll) camObj.rotateZ(cam.roll * DEG); camObj.getWorldDirection(fwd);
@@ -660,18 +659,20 @@ export default {
       _wc.copy(S1 ? W1.group.position : W2.group.position).project(camObj); const rcx = clamp(_wc.x * 0.5 + 0.5, 0.1, 0.9), rcy = clamp(_wc.y * 0.5 + 0.5, 0.1, 0.9);
       const smear = track([[7.6, 0], [9, 1, 'io2'], [11.6, 1], [13, 0, 'io2']], rf);
       // ink closes over shot 1 and opens on shot 2
-      const hole = track([[0, 2], [7.5, 2], [8.5, 1.05, 'in2'], [9.7, 0.3, 'lin'], [10.35, 0, 'out2'], [10.6, 0], [11.3, 0.42, 'in2'], [12.3, 2, 'lin']], rf);
+      const hole = track([[0, 2], [7.5, 2], [8.5, 1.05, 'in2'], [9.7, 0.32, 'lin'], [10.3, 0.14, 'out2'], [10.7, 0.14], [11.3, 0.45, 'in2'], [12.3, 2, 'lin']], rf);
       matte.visible = hole < 1.8; matU.uHole.value = hole; matU.uT.value = rf; const warm = prog(rf, 10.2, 10.8);
-      matU.uRimAmt.value = lerp(0.55, 0.85, warm); matU.uSoft.value = lerp(0.06, 0.085, warm);
-      const bl = track([[8.0, 0], [9.2, 1, 'io2'], [11.4, 1], [12.7, 0, 'io2']], rf);
+      matU.uRimAmt.value = lerp(0.55, 0.5, warm); matU.uSoft.value = lerp(0.06, 0.075, warm);
+      const bl = track([[8.0, 0], [9.2, 1, 'io2'], [10.8, 1], [11.9, 0, 'io2']], rf);
       for (const b of BLOBS) { b.m.visible = bl > 0.002; if (!b.m.visible) continue; const tt = rf - 10.4; const a = b.a + tt * 0.1 * b.dir, rad = b.rad * (1 + tt * 0.05);
-        b.m.position.set(Math.cos(a) * rad * AX, Math.sin(a) * rad * 0.6, 0); b.m.scale.set(b.s * (1 + 0.04 * tt), b.s * b.sq * (1 + 0.04 * tt), 1); b.m.rotation.z = b.rot + tt * 0.12; setRGB(b.m.material.color, b.cA, b.cB, warm); b.m.material.opacity = 0.17 * bl * b.w; }
+        b.m.position.set(Math.cos(a) * rad * AX, Math.sin(a) * rad * 0.6, 0); b.m.scale.set(b.s * (1 + 0.04 * tt), b.s * b.sq * (1 + 0.04 * tt), 1); b.m.rotation.z = b.rot + tt * 0.12; setRGB(b.m.material.color, b.cA, b.cB, warm); b.m.material.opacity = (0.17 + 0.1 * pulse(rf, 10.5, 1.2, 0.8)) * bl * b.w; }
       const smK = S1 ? prog(rf, 2.6, 4.2) : prog(rf, 11.4, 12.8) * (1 - prog(rf, 19, 20.7));
       for (const s of SMUDGE) { const p = S1 ? s.p1 : s.p2, sc = S1 ? s.s1 : s.s2; s.m.position.set(p[0] - orbit * 1.4, p[1], 0); s.m.scale.set(sc * 1.15, sc, 1); s.m.material.opacity = 0.9 * smK; s.m.visible = smK > 0.002; }
       // the opening light pass
       const pk = prog(rf, 0, 2.9, 'io2'), pO = Math.sin(Math.PI * sat(rf / 2.9));
       passA.position.set(lerp(-1.4, 1.4, pk) * AX, 0.1 - 0.12 * pk, 0); passA.rotation.z = 0.2; passA.material.opacity = 0.32 * pO; passA.visible = pO > 0.002;
       passB.position.set(lerp(-1.2, 1.25, pk) * AX, 0.1 - 0.12 * pk, 0); passB.rotation.z = 0.2; passB.material.opacity = 0.5 * pO; passB.visible = pO > 0.002;
+      const ck = track([[9.5, 0], [10.4, 1, 'in2'], [10.62, 1], [11.5, 0, 'out2']], rf), cf = 0.85 + 0.15 * wobble(rf * 3.1, 23);
+      for (const [m, a, sx, sy] of [[cutGlow, 0.32, 0.5, 0.5], [cutCore, 0.55, 0.16, 0.16], [cutStreak, 0.42, 1.5, 0.035], [cutHair, 0.6, 0.9, 0.007]]) { m.visible = ck > 0.002; m.material.opacity = a * ck * cf; const g = 0.75 + 0.35 * ck; m.scale.set(sx * g, sy * (m === cutStreak || m === cutHair ? 1 : g), 1); }
       // leaks
       const lk = 0.8 + 0.2 * wobble(rf * 0.8, 11);
       leakTL.material.opacity = lk * track([[0, 0.3], [4, 0.26], [8, 0.24], [9.6, 0.06], [11.6, 0.12], [13, 0.3], [17.2, 0.28], [19, 0.1], [20.7, 0.0]], rf);
@@ -684,10 +685,10 @@ export default {
       const endK = prog(rf, 17.6, 20.75);
       const zb = track([[0, 0.5], [1.6, 0.42], [2.6, 0.26, 'lin'], [3.4, 0.14, 'lin'], [4.25, 0, 'out2'], [7.7, 0], [8.6, 0.12, 'in2'], [9.6, 0.32, 'lin'], [10.6, 0.4], [11.6, 0.32], [12.5, 0.12, 'lin'], [13.05, 0, 'out2'], [21, 0]], rf);
       const hold = (1 - smear) * prog(rf, 4.1, 4.5);
-      const rays = S1 ? track([[3.9, 0], [4.45, 0.3, 'out2'], [5.6, 0.15, 'io2'], [7.6, 0.13], [9.0, 0.03], [10.5, 0]], rf) : track([[12.6, 0], [13.45, 0.22, 'out2'], [14.6, 0.11, 'io2'], [17.5, 0.1], [19.5, 0.02]], rf);
+      const rays = S1 ? track([[3.9, 0], [4.45, 0.2, 'out2'], [5.6, 0.1, 'io2'], [7.6, 0.09], [9.0, 0.02], [10.5, 0]], rf) : track([[12.6, 0], [13.45, 0.16, 'out2'], [14.6, 0.08, 'io2'], [17.5, 0.07], [19.5, 0.02]], rf);
       const post = {
-        exposure: 1, bloom: lerp(0.5, 0.62, endK), bloomThreshold: 0.8, bloomTint: [1, 0.9, 0.9],
-        contrast: lerp(1.12, 1.06, endK), saturation: lerp(1.14, 1.1, endK),
+        exposure: 1, bloom: lerp(0.42, 0.75, endK), bloomThreshold: 0.8, bloomTint: [lerp(1, 1, endK), lerp(0.86, 0.96, endK), lerp(0.86, 0.98, endK)],
+        contrast: lerp(1.12, 1.06, endK), saturation: lerp(1.14, 1.12, endK),
         vignette: track([[0, 0.55], [3, 0.6], [4.5, 0.7], [7.6, 0.7], [10.5, 0.55], [13.3, 0.7], [17.5, 0.72], [20.75, 0.9]], rf),
         chroma: 0.0014 + 0.0024 * pulse(rf, 4.35, 1.2, 0.3) + 0.002 * pulse(rf, 13.35, 1.2, 0.3) + 0.0028 * smear,
         zoomBlur: zb, zoomCenter: [0.5, 0.5],
@@ -696,7 +697,7 @@ export default {
         rotate: 0.003 * wobble(rf * 0.5, 17), shake: [0.0015 * wobble(rf * 1.3, 41), 0.0015 * wobble(rf * 1.3, 43)],
         rays, raysCenter: [rcx, rcy], streak: 0.32,
         leak: track([[0, 0.14], [4, 0.1], [8, 0.08], [9.6, 0.03], [12.4, 0.1], [17, 0.1], [20.75, 0.0]], rf), leakColor: [1, 0.1, 0.16], leakPos: [0.04, 0.96], leakSize: 0.75,
-        grain: 0.05, scratches: 0.45 * (1 - hold) * (1 - endK), dust: lerp(0.3, 0.18, hold), sharpen: 0.38,
+        grain: 0.05, scratches: 0.45 * (1 - hold) * (1 - endK), dust: lerp(lerp(0.3, 0.18, hold), 0.2, endK), sharpen: 0.38,
         bars: track([[0, 0.055], [8.6, 0.055], [10.4, 0, 'io2']], rf), barsAlpha: 1, barsGlow: track([[0, 0.12], [4.3, 0.12], [4.6, 0.3, 'out2'], [5.6, 0.14, 'io2'], [8.6, 0.12], [10.4, 0]], rf), barsGlowColor: [1, 0.2, 0.26],
       };
       return { cam, clear: S1 ? 0x030001 : 0x080102, post };
