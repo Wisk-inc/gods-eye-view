@@ -15,11 +15,11 @@ export const MANIFEST = [
 ];
 
 /** Dynamically import the requested sections; a broken or missing module never takes the others down. */
-export async function loadSections(only) {
+export async function loadSections(only, dir) {   // dir: another folder of scene modules with the same file names (one edit per folder)
   const out = [];
   for (const m of MANIFEST) {
     if (only && !only.includes(m.id)) continue;
-    try { const mod = await import('./' + m.file); out.push({ ...mod.default, ...m }); } catch (e) { out.push({ ...m, error: String((e && e.stack) || e) }); }
+    try { const mod = await import(dir && dir !== 'sections' ? `../${dir}/${m.file}` : './' + m.file); out.push({ ...mod.default, ...m }); } catch (e) { out.push({ ...m, error: String((e && e.stack) || e) }); }
   }
   return out;
 }

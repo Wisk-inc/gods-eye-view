@@ -50,6 +50,28 @@ node render.mjs --audio /path/to/your-clip.mp3 --audio-start 0
   instead: upload the video, add the official sound, and slide it so a strong beat lands on the first word.
   `--guide` adds a plain synthesized beat on that grid, only useful for checking sync.
 
+## Edits in this folder
+
+One engine, several edits. Each edit has its own config, words, timing and scene folder:
+
+| Edit | Config | Scenes |
+|---|---|---|
+| Skippa – "Young" | `edit.config.json` (default) | `engine/sections/` |
+| The Weeknd – "Often" (heavenly) | `edits/weeknd-often/edit.config.json` | `engine/sections_weeknd/` |
+
+```bash
+node render.mjs --config edits/weeknd-often/edit.config.json --out out/weeknd_often.mp4
+```
+
+The Weeknd edit runs on a 134 BPM grid (the original "Often"; it moves in a slow half-time feel) with a light
+pulse on every second beat (`beatFx` in its config). Its words in `edits/weeknd-often/lyrics.txt` are original
+lines, not the song's lyrics; replace them with your own if you like. Its slot table is
+`edits/weeknd-often/slots.json`:
+
+```bash
+python3 tools/make_pacing.py --bpm 134 --offset 0.12 --slots edits/weeknd-often/slots.json --out edits/weeknd-often/song.timing.json
+```
+
 ## Pacing
 
 `tools/make_pacing.py` holds one row per word: the reference frame where it starts and the beat it lands on.

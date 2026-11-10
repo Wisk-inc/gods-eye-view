@@ -58,7 +58,7 @@ export async function init(userCfg = {}) {
   const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(40, cfg.width / cfg.height, 0.05, 600);
   const ctx = { THREE, kit, tex, cfg, words: cfg.words || {}, scene, camera };
   const sections = []; const errors = [];
-  for (const def of await loadSections(cfg.only)) {
+  for (const def of await loadSections(cfg.only, cfg.sectionsDir)) {
     if (def.error) { errors.push(def.id + ' (' + def.file + '): ' + def.error); continue; }
     try { const inst = def.build(ctx); inst.group.visible = false; scene.add(inst.group); sections.push({ def, inst }); } catch (e) { errors.push(def.id + ': ' + (e && e.stack ? e.stack : e)); }
   }
@@ -95,7 +95,12 @@ export function renderFrame(n, opts = {}) {
       post.sample(scene, camera, 1 / N, out.clear ?? 0x000000);
       if (k === mid || N === 1) { P = { ...POST_DEFAULTS, ...(out.post || {}) };
         // cfg.calm (0..1) damps exposure pumping and flashes so hits read as light, not as a brightness slider
-        P.contrast *= cfg.mood ?? 1.05;   // a touch more contrast everywhere: the filmic shoulder keeps the highlights
+        P.contrast *= cfg.mood ?? 1.05;
+        // cfg.beatFx: a light pulse locked to the SONG's beat grid in output time (holds included), so every beat lands
+        //   { zoom, chroma, bloom, every (beats per pulse), bar (beats per bar: downbeats hit twice as hard) }
+        if (cfg.beatFx) { const B = cfg.beatFx, sb = 60 / cfg.bpm, b = (t0 - cfg.offset) / sb, ev = B.every || 1; const bi = Math.floor(b / ev), ph = (b / ev - bi) * ev * sb;
+          if (bi >= 0) { const env = ph < 0.03 ? ph / 0.03 : Math.exp(-(ph - 0.03) / (B.decay || 0.16)); const down = (bi * ev) % (B.bar || 4) === 0 ? 2 : 1;
+            P.zoom = (P.zoom || 1) * (1 + (B.zoom ?? 0.012) * env * down); P.chroma = (P.chroma || 0) + (B.chroma ?? 0.0012) * env * down; P.bloom = (P.bloom || 0) * (1 + (B.bloom ?? 0.12) * env * down); } }   // a touch more contrast everywhere: the filmic shoulder keeps the highlights
         if (cfg.calm > 0) { if (P.exposure > 1) P.exposure = 1 + (P.exposure - 1) * (1 - cfg.calm); P.flash *= 1 - 0.55 * cfg.calm; P.bloom *= 1 - 0.2 * cfg.calm; } }
     }
   } else { P.fade = 1; P.mark = 0; }

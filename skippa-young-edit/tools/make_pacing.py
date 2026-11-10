@@ -51,7 +51,9 @@ SLOTS = [
 ap = argparse.ArgumentParser(); ap.add_argument('--bpm', type=float, default=103.0); ap.add_argument('--offset', type=float, default=0.12)
 ap.add_argument('--hold', type=float, default=1.6, help='how much slower the hold runs than the entrance/exit'); ap.add_argument('--min', type=float, default=1.8, help='entrance/exit never faster than natural speed / this')
 ap.add_argument('--smooth', type=float, default=0.12); ap.add_argument('--tail', type=float, default=0.6); ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'song.timing.json'))
+ap.add_argument('--slots', help='JSON file with the slot table [[rf_in, beat, rf_formed|null, rf_exit|null], ...] (default: the built-in table)')
 a = ap.parse_args(); beat = 60.0 / a.bpm; FPS = 30.0
+if a.slots: SLOTS = [tuple(r) for r in json.load(open(a.slots))]
 anch = [(0.0, 0.0)]
 for i, (r0, b0, r1, r2) in enumerate(SLOTS):
     T0 = a.offset + b0 * beat; anch.append((r0, T0))

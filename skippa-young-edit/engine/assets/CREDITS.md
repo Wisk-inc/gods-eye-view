@@ -10,3 +10,4 @@ All files in this folder are public domain or CC0.
 | `env.jpg` | Poly Haven, "Studio Small 09", tonemapped and resized | CC0 |
 | `grit.jpg` | ambientCG, "Metal009" roughness map, contrast-stretched | CC0 |
 | `wood.jpg` | ambientCG, "Wood049" colour map, converted to a luminance grain | CC0 |
+| `sky_heaven.jpg` | Poly Haven, "Evening Road 01 (Pure Sky)" by Greg Zaal, tonemapped JPG, cropped to longitude −72°…144°, latitude 82.8°…−10.8° | CC0 |

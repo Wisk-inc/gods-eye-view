@@ -173,24 +173,26 @@ function moonTex(size, seed = 11) {
 }
 
 // outro emblem: an original roundel — crown over a cut "Y", ring text, pentagon panel (football nod)
-function emblem(size, { glyph = 'Y', ringText = 'YOUNG  ·  SKIPPA  ·  YOUNG  ·  SKIPPA  ·  ', font = 'Teko' } = {}) {
+function emblem(size, { glyph = 'Y', ringText = 'YOUNG  ·  SKIPPA  ·  YOUNG  ·  SKIPPA  ·  ', font = 'Teko', style = 'crown', colors = null } = {}) {
+  const C = colors || { hi: '#d9a4ff', mid: '#8a2be2', lo: '#2a0650', rim: '#ff5fb0', ink: 'rgba(40,0,80,0.35)', panel: 'rgba(30,0,70,0.55)', crown: '#ffe9ff', shadow: 'rgba(20,0,60,0.8)' };
   const [c, g] = canvas(size, size); const r = size / 2; g.translate(r, r);
-  const bg = g.createRadialGradient(-r * 0.25, -r * 0.3, r * 0.05, 0, 0, r); bg.addColorStop(0, '#d9a4ff'); bg.addColorStop(0.45, '#8a2be2'); bg.addColorStop(1, '#2a0650');
+  const bg = g.createRadialGradient(-r * 0.25, -r * 0.3, r * 0.05, 0, 0, r); bg.addColorStop(0, C.hi); bg.addColorStop(0.45, C.mid); bg.addColorStop(1, C.lo);
   g.fillStyle = bg; g.beginPath(); g.arc(0, 0, r * 0.97, 0, TAU); g.fill();
-  g.strokeStyle = '#ff5fb0'; g.lineWidth = size * 0.012; g.beginPath(); g.arc(0, 0, r * 0.955, 0, TAU); g.stroke();
+  g.strokeStyle = C.rim; g.lineWidth = size * 0.012; g.beginPath(); g.arc(0, 0, r * 0.955, 0, TAU); g.stroke();
   g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = size * 0.008; g.beginPath(); g.arc(0, 0, r * 0.9, 0, TAU); g.stroke(); g.beginPath(); g.arc(0, 0, r * 0.68, 0, TAU); g.stroke();
   // engraved radial hatching between the rings
-  g.strokeStyle = 'rgba(40,0,80,0.35)'; g.lineWidth = size * 0.004; for (let i = 0; i < 160; i++) { const a = (i / 160) * TAU; g.beginPath(); g.moveTo(Math.cos(a) * r * 0.69, Math.sin(a) * r * 0.69); g.lineTo(Math.cos(a) * r * 0.89, Math.sin(a) * r * 0.89); g.stroke(); }
+  g.strokeStyle = C.ink; g.lineWidth = size * 0.004; for (let i = 0; i < 160; i++) { const a = (i / 160) * TAU; g.beginPath(); g.moveTo(Math.cos(a) * r * 0.69, Math.sin(a) * r * 0.69); g.lineTo(Math.cos(a) * r * 0.89, Math.sin(a) * r * 0.89); g.stroke(); }
   // ring text
   g.fillStyle = '#fff'; g.font = `700 ${size * 0.118}px '${font}'`; g.textAlign = 'center'; g.textBaseline = 'middle';
   const chars = ringText.split(''); chars.forEach((ch, i) => { const a = -Math.PI / 2 + (i / chars.length) * TAU; g.save(); g.rotate(a + Math.PI / 2); g.translate(0, -r * 0.785); g.fillText(ch, 0, size * 0.006); g.restore(); });
   // pentagon panel
-  g.fillStyle = 'rgba(30,0,70,0.55)'; g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = size * 0.01; g.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i / 5) * TAU; g[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6 + r * 0.03); } g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = C.panel; g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = size * 0.01; g.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i / 5) * TAU; g[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6 + r * 0.03); } g.closePath(); g.fill(); g.stroke();
   // crown
-  g.fillStyle = '#ffe9ff'; g.beginPath(); const cw = r * 0.34, cy = -r * 0.33; g.moveTo(-cw, cy + r * 0.13); g.lineTo(-cw * 1.08, cy - r * 0.07); g.lineTo(-cw * 0.5, cy + r * 0.03); g.lineTo(0, cy - r * 0.15); g.lineTo(cw * 0.5, cy + r * 0.03); g.lineTo(cw * 1.08, cy - r * 0.07); g.lineTo(cw, cy + r * 0.13); g.closePath(); g.fill();
-  [-1.08, 0, 1.08].forEach((k, i) => { g.beginPath(); g.arc(cw * k, cy - (i === 1 ? r * 0.175 : r * 0.09), r * 0.03, 0, TAU); g.fill(); });
+  const cw = r * 0.34, cy = -r * 0.33; if (style === 'halo') { g.save(); g.strokeStyle = C.crown; g.shadowColor = C.crown; g.shadowBlur = size * 0.03; g.lineWidth = size * 0.022; g.beginPath(); g.ellipse(0, cy - r * 0.02, r * 0.3, r * 0.085, 0, 0, TAU); g.stroke(); g.restore(); } else {
+  g.fillStyle = C.crown; g.beginPath(); g.moveTo(-cw, cy + r * 0.13); g.lineTo(-cw * 1.08, cy - r * 0.07); g.lineTo(-cw * 0.5, cy + r * 0.03); g.lineTo(0, cy - r * 0.15); g.lineTo(cw * 0.5, cy + r * 0.03); g.lineTo(cw * 1.08, cy - r * 0.07); g.lineTo(cw, cy + r * 0.13); g.closePath(); g.fill();
+  [-1.08, 0, 1.08].forEach((k, i) => { g.beginPath(); g.arc(cw * k, cy - (i === 1 ? r * 0.175 : r * 0.09), r * 0.03, 0, TAU); g.fill(); }); }
   // monogram
-  g.fillStyle = '#fff'; g.font = `700 ${size * 0.44}px '${font}'`; g.shadowColor = 'rgba(20,0,60,0.8)'; g.shadowBlur = size * 0.02; g.shadowOffsetY = size * 0.008; g.fillText(glyph, 0, r * 0.2);
+  g.fillStyle = '#fff'; g.font = `700 ${size * 0.44}px '${font}'`; g.shadowColor = C.shadow; g.shadowBlur = size * 0.02; g.shadowOffsetY = size * 0.008; g.fillText(glyph, 0, r * 0.2);
   return c;
 }
 
@@ -219,7 +221,7 @@ export async function makeTextures(cfg = {}) {
   T.figFall = tex(figureFall(512)); T.figStand = tex(figureStand(512)); T.figSit = tex(figureSit(512));
   T.noise = tex(noiseTex(256, 7), { repeat: true }); T.noise.minFilter = THREE.LinearFilter; T.noise.generateMipmaps = false;
   T.planet = tex(planetTex(1024, 512, 3), { repeat: true }); T.moon = tex(moonTex(512, 11), { repeat: true });
-  T.emblem = tex(emblem(1024, { glyph: cfg.emblemGlyph || 'Y', ringText: cfg.emblemRing || 'YOUNG  ·  SKIPPA  ·  YOUNG  ·  SKIPPA  ·  ' }));
+  T.emblem = tex(emblem(1024, { glyph: cfg.emblemGlyph || 'Y', ringText: cfg.emblemRing || 'YOUNG  ·  SKIPPA  ·  YOUNG  ·  SKIPPA  ·  ', style: cfg.emblemStyle || 'crown', colors: cfg.emblemColors || null }));
   T.cta = tex(textPlate(cfg.cta || 'FOLLOW FOR MORE', { font: 'Antonio', weight: 700, px: 200, skew: 0.2, spacing: 10 }));
   T.ctaAspect = T.cta.image.width / T.cta.image.height;
   T.mark = tex(textPlate(cfg.watermark || 'SKIPPA · YOUNG', { font: 'Teko', weight: 700, px: 96, stroke: 3, spacing: 6, pad: 16 }));
@@ -230,7 +232,7 @@ export async function makeTextures(cfg = {}) {
   T.faceTex = await loadImage('local/texture.jpg', { repeat: true });
   T.dustfx = tex(dustOverlay(1024), { repeat: true }); T.earthNight = await loadImage(A + 'earth_night.jpg', { repeat: true });
   const [earth, moon, env, grit, wood] = await Promise.all([loadImage(A + 'earth_day.jpg', { repeat: true }), loadImage(A + 'moon.jpg', { repeat: true }), loadImage(A + 'env.jpg', { repeat: true }), loadImage(A + 'grit.jpg', { repeat: true }), loadImage(A + 'wood.jpg', { repeat: true })]);
-  T.earth = T.earthDay = earth; if (moon) T.moon = moon; T.env = env; T.grit = grit || T.white; T.wood = wood;
+  T.earth = T.earthDay = earth; if (moon) T.moon = moon; T.sky = await loadImage(A + 'sky_heaven.jpg'); T.env = env; T.grit = grit || T.white; T.wood = wood;
   // optional local pack (tools/import_pack.py): overlay clips as frame atlases + sprite images. Never committed.
   T.ovl = {}; T.pack = {};
   try { const man = await (await fetch('local/manifest.json')).json();

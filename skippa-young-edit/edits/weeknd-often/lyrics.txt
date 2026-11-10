@@ -1,0 +1,30 @@
+# Words on screen for "OFTEN (heavenly)" — one line per word-slot, in order (26 lines).
+# These are ORIGINAL lines written for this edit; they are not the song's lyrics.
+# To use your own words, replace the lines below (keep 26 lines) and render again.
+# Slot 24 extends slot 23 (it must start with the same word), like "THE" -> "THE SKY".
+OFTEN
+THE
+NIGHT
+GLOWS
+NEON
+RED
+HEAVEN
+SO CLOSE
+TONIGHT
+I
+CAN FEEL
+THE
+LIGHT
+NO
+WINGS
+JUST NEON ANGELS
+WHEN
+IT FADES
+WE
+STILL
+RISE
+TO
+THE
+THE SKY
+SO
+OFTEN
