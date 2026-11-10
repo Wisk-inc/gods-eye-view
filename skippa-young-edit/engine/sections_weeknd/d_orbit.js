@@ -23,6 +23,17 @@ void main(){ vec3 d = normalize(vD); float lon = degrees(atan(d.x, -d.z)), lat =
   // dimension: cloud shadows cooler and deeper, sunlit tops brighter (an S-curve on luminance)
   float L2 = clamp(dot(c, vec3(0.299, 0.587, 0.114)), 0.0, 1.0); float S2 = L2 * L2 * (3.0 - 2.0 * L2); c *= mix(0.78, 1.18, S2) ; c = mix(c, c * vec3(0.86, 0.94, 1.12), (1.0 - smoothstep(0.25, 0.65, L2)) * 0.7);
   gl_FragColor = vec4(c * uGain, 1.0); }`;
+// a soft white feather drawn on a canvas: tapered quill, hundreds of fine barbs, a few splits, downy base
+function featherCanvas(seed = 1) {
+  const W = 256, H = 1024, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); let s = seed * 9301 + 49297; const R = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  const qx = (y) => W * 0.5 + Math.sin((y / H) * 2.2) * 10;   // gently curved quill
+  for (let i = 0; i < 760; i++) { const t = i / 760, y = 60 + t * 820, side = i % 2 ? 1 : -1; const len = (Math.sin(Math.PI * Math.min(1, t * 1.15)) * 0.9 + 0.1) * (side > 0 ? 92 : 104) * (0.85 + R() * 0.3); if (R() < 0.05) continue;   // splits
+    const x0 = qx(y), a = (side > 0 ? -0.62 : -2.52) + (R() - 0.5) * 0.08; g.strokeStyle = `rgba(255,255,255,${0.34 + R() * 0.3})`; g.lineWidth = 1.6 + R() * 1.6;
+    g.beginPath(); g.moveTo(x0, y); g.quadraticCurveTo(x0 + Math.cos(a) * len * 0.55, y + Math.sin(a) * len * 0.35, x0 + Math.cos(a) * len, y + Math.sin(a) * len * 0.62 - 6); g.stroke(); }
+  for (let i = 0; i < 160; i++) { const y = 860 + R() * 120, x0 = qx(y), a = R() * Math.PI * 2, l = 20 + R() * 46; g.strokeStyle = `rgba(255,255,255,${0.08 + R() * 0.14})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y); g.lineTo(x0 + Math.cos(a) * l, y + Math.sin(a) * l * 0.6); g.stroke(); }   // down
+  g.strokeStyle = 'rgba(255,252,240,0.95)'; g.lineCap = 'round'; for (let y = 40; y < 1000; y += 4) { g.lineWidth = 1 + 4.5 * (y / H); g.beginPath(); g.moveTo(qx(y), y); g.lineTo(qx(y + 4), y + 4); g.stroke(); }
+  return c;
+}
 const GOLD = { top: '#ffdc7a', bot: '#b8720f', side: '#5e3404', sideDark: '#120800', rim: '#fff3c8', gain: 0.92, chrome: 0.3, rimAmt: 0.9 };
 
 export default {
@@ -38,6 +49,12 @@ export default {
     // ---- golden motes (soft out-of-focus specks catching the sun)
     const motes = []; for (let i = 0; i < 70; i++) motes.push([R.range(-7, 7), R.range(-4, 4.5), -R.range(2.5, 14), R.range(0.02, 0.06)]);
     const moteMesh = kit.bokeh(motes, { color: '#ffd796', gain: 0.9, floor: 0.12 }); group.add(moteMesh);
+    // ---- feathers drifting down slowly: two large and soft near the lens, a few small far away (never over the word)
+    const ftex = [1, 2].map((sd) => { const t = new THREE.CanvasTexture(featherCanvas(sd)); t.anisotropy = 8; return t; });
+    // positions in the camera's frame: x right, y up, z distance ahead (the word sits at about x -0.85, y -0.35, z 9)
+    const feathers = [[-2.7, 0.7, 4.2, 1.5, 0], [3.0, 1.3, 5.2, 1.3, 1], [-4.6, -1.3, 12, 1.1, 1], [4.9, 2.0, 13, 1.0, 0], [-0.9, 2.9, 14, 0.9, 0]].map(([x, y, z, h, ti], i) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(h * 0.32, h), new THREE.MeshBasicMaterial({ map: ftex[ti], color: new THREE.Color('#efe2cc'), transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0.0, toneMapped: false }));
+      m.userData = { x, y, z, ph: R() * 6, sw: R.range(0.25, 0.5), fall: R.range(0.22, 0.38), spin: R.range(0.5, 0.9) * (i % 2 ? 1 : -1) }; group.add(m); return m; });
     // ---- the sun's lens flare
     const flare = kit.flare({ color: '#ffc77a', size: 3.0, streak: 10, ghosts: true, gain: 0.8 }); group.add(flare);
 
@@ -59,6 +76,8 @@ export default {
       const tgt = pos.clone().addScaledVector(look, 10);
       sky.position.copy(pos);
       wisps.forEach((m) => { const u = m.userData; const y = ((u.y0 - t * u.sp * 9 + 12) % 16 + 16) % 16 - 7; m.position.set(pos.x + u.x, pos.y + y, pos.z + u.z); m.rotation.z = u.r + t * 0.02; m.material.opacity = u.o * prog(rf, 79, 90); m.lookAt(pos); });
+      feathers.forEach((m) => { const u = m.userData; const tt = t + u.ph; m.position.copy(pos).addScaledVector(right, u.x + Math.sin(tt * 0.9) * u.sw).addScaledVector(up, u.y - t * u.fall).addScaledVector(M.look, u.z);
+        m.rotation.set(0.3 * Math.sin(tt * 0.7), tt * u.spin * 0.6, 0.6 + 0.5 * Math.sin(tt * 0.8)); m.material.opacity = 0.95 * prog(rf, 80, 88) * (1 - prog(rf, 112, 116)); });
       // word: grows into place inside the frame, turns a few degrees, sun sweep in the hold
       w.reset(1); w.intro(rf, { start: 84, stagger: 2.4, dur: 7, type: 'grow' });
       w.group.position.set(WP.x, WP.y + 0.05 * Math.sin(t * 1.1), WP.z); w.group.lookAt(pos); w.group.rotateY(0.3 - 0.12 * k); w.group.rotateX(-0.04); w.group.rotateZ(0.05 - 0.03 * k);
