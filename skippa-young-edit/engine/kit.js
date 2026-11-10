@@ -13,7 +13,7 @@
 //   cam()       camera keyframe interpolation, shake()
 import * as THREE from 'three';
 import { cutGlyph, capHeight, DEFAULT_CUT } from './glyphs.js';
-import { rng, clamp, lerp, sat, ease, hash1, fbm1, wobble, TAU, DEG } from './util.js';
+import { rng, clamp, lerp, sat, ease, hash1, fbm1, wobble, pulse, TAU, DEG } from './util.js';
 
 const V3 = (a) => (a instanceof THREE.Vector3 ? a : new THREE.Vector3(a[0], a[1], a[2] || 0));
 const COL = (c) => new THREE.Color(c);
@@ -299,6 +299,44 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
           vec3 col = mix(uFill, uLine, clamp(ln, 0.0, 1.0)); float a = clamp(max(inside, ln), 0.0, 1.0) * uOpacity; gl_FragColor = vec4(${additive ? 'uLine * ln * uOpacity, 1.0' : 'col, a'}); }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w + pad * 2, h + pad * 2), mat); m.setOpacity = (v) => { mat.uniforms.uOpacity.value = v; }; return m;
+  };
+
+  // ---- designed detail: impact bursts, dial graphics, light beams (all additive, all cheap) ---------------------
+  /** Impact burst when a word lands. hits: [{rf, at:[x,y,z], size, color, sparks}]. Call .update(rf) every frame.
+   *  Each hit: two expanding rings, a fan of sparks that fly out and die, a soft flash behind, a few glints. */
+  kit.impactFX = (hits) => {
+    const g = new THREE.Group();
+    const items = hits.map((h, hi) => { const R = rng(900 + hi * 7 + Math.round(h.rf * 3)); const s = h.size ?? 1.5; const col = h.color || '#ffffff'; const grp = new THREE.Group(); grp.position.set(...h.at); grp.visible = false;
+      const ring = kit.plate(tex.ringThin, 1, 1, { additive: true, color: col, opacity: 0 }), ring2 = kit.plate(tex.ring, 1, 1, { additive: true, color: col, opacity: 0 }), glow = kit.plate(tex.glow, s * 4, s * 2.4, { additive: true, color: col, opacity: 0 }); glow.position.z = -0.4;
+      const sparks = []; for (let i = 0, n = h.sparks ?? 26; i < n; i++) { const a = R() * TAU; const m = kit.plate(tex.streak, 1, 1, { additive: true, color: i % 3 ? col : '#ffffff', opacity: 0 }); m.rotation.z = a; m.userData = { a, v: R.range(0.55, 1.5) * s, len: R.range(0.25, 0.7) * s, w: R.range(0.02, 0.05) * s, d: R.range(0, 1.6), z: R.range(-0.3, 0.5) }; grp.add(m); sparks.push(m); }
+      const glints = []; for (let i = 0; i < 5; i++) { const m = kit.plate(tex.glint, 1, 1, { additive: true, billboard: true, color: '#ffffff', opacity: 0 }); m.userData = { p: [R.range(-1.2, 1.2) * s, R.range(-0.5, 0.5) * s, 0.5], d: R.range(0, 4), s: R.range(0.25, 0.6) * s }; grp.add(m); glints.push(m); }
+      grp.add(ring, ring2, glow); g.add(grp); return { h, s, grp, ring, ring2, glow, sparks, glints }; });
+    const update = (rf) => { for (const it of items) { const t = rf - it.h.rf; const on = t > -0.5 && t < 16; it.grp.visible = on; if (!on) continue; const s = it.s, fin = sat(t * 2 + 1);
+      const k1 = ease.out3(sat(t / 9)); it.ring.scale.setScalar(s * lerp(0.8, 4.2, k1)); it.ring.material.opacity = 0.9 * (1 - k1) * fin;
+      const k2 = ease.out3(sat((t - 1.5) / 10)); it.ring2.scale.setScalar(s * lerp(0.5, 3.0, k2)); it.ring2.material.opacity = 0.55 * (1 - k2) * sat(t - 0.5);
+      it.glow.material.opacity = 0.5 * Math.exp(-Math.max(0, t) / 3.5) * fin;
+      for (const m of it.sparks) { const u = m.userData; const tt = t - u.d; if (tt <= 0) { m.material.opacity = 0; continue; } const k = ease.out3(sat(tt / 9)); const r = s * 0.5 + u.v * k * 2.4; m.position.set(Math.cos(u.a) * r, Math.sin(u.a) * r * 0.75, u.z); m.scale.set(u.len * (1 - 0.6 * k), u.w, 1); m.material.opacity = (1 - k) * 0.95; }
+      for (const m of it.glints) { const u = m.userData; const k = pulse(t, u.d + 1.5, 4, 1.5); m.position.set(...u.p); m.scale.set(u.s * (0.4 + 0.8 * k), u.s * (0.4 + 0.8 * k), 1); m.material.opacity = k; m.material.rotation = t * 0.12; } } };
+    return { group: g, update };
+  };
+  /** Dial graphics behind a word: a dashed ring, a ring of tick marks and broken arcs, counter-rotating slowly.
+   *  {center, radius, color, opacity, seed}. Call .update(rf, k) with k = visibility 0..1. Keep it BEHIND the text. */
+  kit.ornaments = (o = {}) => {
+    const { center = [0, 0, 0], radius = 2.6, color = '#ffffff', opacity = 0.45, seed = 3 } = o; const g = new THREE.Group(); g.position.set(...center); const R = rng(seed);
+    const mk = (draw) => { const c = document.createElement('canvas'); c.width = c.height = 1024; const x = c.getContext('2d'); x.translate(512, 512); x.strokeStyle = '#fff'; x.lineCap = 'butt'; draw(x); const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t; };
+    const dashed = mk((x) => { x.lineWidth = 5; x.setLineDash([46, 30]); x.beginPath(); x.arc(0, 0, 470, 0, TAU); x.stroke(); x.setLineDash([]); x.lineWidth = 2; x.beginPath(); x.arc(0, 0, 440, 0, TAU); x.stroke(); });
+    const ticks = mk((x) => { for (let i = 0; i < 72; i++) { const a = (i / 72) * TAU, l = i % 6 === 0 ? 46 : 20; x.lineWidth = i % 6 === 0 ? 6 : 3; x.beginPath(); x.moveTo(Math.cos(a) * 480, Math.sin(a) * 480); x.lineTo(Math.cos(a) * (480 - l), Math.sin(a) * (480 - l)); x.stroke(); } });
+    const arcs = mk((x) => { x.lineWidth = 9; for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(0, 0, 420, i * 2.1 + 0.2, i * 2.1 + 1.3); x.stroke(); } x.lineWidth = 3; x.beginPath(); x.arc(0, 0, 380, 0.4, 5.2); x.stroke(); });
+    const L = [[dashed, 2.0, 0.006, -0.5, 1], [ticks, 2.45, -0.004, -0.9, 0.7], [arcs, 1.55, 0.011, -0.3, 1]].map(([t, k, sp, z, om]) => { const m = kit.plate(t, radius * k, radius * k, { additive: true, color, opacity }); m.position.z = z; m.userData = { sp, ph: R() * 6, om }; g.add(m); return m; });
+    const update = (rf, k = 1) => { for (const m of L) { m.rotation.z = m.userData.ph + rf * m.userData.sp; m.material.opacity = opacity * k * m.userData.om; } g.visible = k > 0.003; };
+    return { group: g, update };
+  };
+  /** Soft light shafts fanning out from a point behind a word. {center, count, len, color, opacity, seed, spread}. .update(rf, k) */
+  kit.beams = (o = {}) => {
+    const { center = [0, 0, -1], count = 9, len = 9, color = '#ffffff', opacity = 0.14, seed = 5, spread = TAU } = o; const g = new THREE.Group(); g.position.set(...center); const R = rng(seed); const list = [];
+    for (let i = 0; i < count; i++) { const m = kit.plate(tex.streak, len, R.range(0.5, 1.6), { additive: true, color, opacity }); m.userData = { a: (i / count) * spread + R.range(-0.2, 0.2), sp: R.range(0.002, 0.006) * (i % 2 ? 1 : -1), o: R.range(0.5, 1) }; g.add(m); list.push(m); }
+    const update = (rf, k = 1) => { for (const m of list) { const u = m.userData; const a = u.a + rf * u.sp; m.rotation.z = a; m.position.set(Math.cos(a) * len * 0.5, Math.sin(a) * len * 0.5, 0); m.material.opacity = opacity * u.o * k * (0.7 + 0.3 * Math.sin(rf * 0.07 + u.a * 3)); } g.visible = k > 0.003; };
+    return { group: g, update };
   };
 
   // ---- anamorphic lens flare

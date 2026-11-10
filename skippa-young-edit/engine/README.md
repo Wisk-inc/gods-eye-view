@@ -65,6 +65,9 @@ Screen position: move `tgt` (and `pos` with it) — a target 1 unit to the right
 | `kit.bokeh(points, {color, gain, opacity, floor})` | additive beads `[[x,y,z,diameter]…]` with **analytic** defocus: each bead widens into a flat bokeh disc by the thin-lens blur circle, so it is smooth at any sample count. `kit.stringPoints({strings, dots, box, center, size, seed})` builds graded bead strings for it. |
 | `kit.soft({w, h, r, fill, fillA, line, ow, additive})` | card / disc / ring drawn as a rounded-rect SDF whose edge and outline soften with defocus (`r ≥ w/2` = disc, `fillA: 0` = ring only). Use these instead of `quad` / `bubbles` when `cam.aperture` is large. |
 | `kit.flare({color, size, streak, ghosts, gain})` | anamorphic flare group; `.setIntensity(v)`. |
+| `kit.impactFX([{rf, at:[x,y,z], size, color, sparks}])` | burst when a word lands: two expanding rings, a fan of sparks, a soft flash, glints. Returns `{group, update(rf)}` — add `.group` to the scene and call `.update(rf)` every frame. |
+| `kit.ornaments({center, radius, color, opacity, seed})` | dial graphics for behind a word (dashed ring, tick ring, broken arcs, counter-rotating). `{group, update(rf, k)}`, `k` = visibility 0..1. |
+| `kit.beams({center, count, len, color, opacity, seed, spread})` | soft light shafts fanning from a point behind a word. `{group, update(rf, k)}`. |
 | `kit.starburst({rInner, rValley, rTip, spikes, rays, rayLen, fill, outline, ring, disc, seed})` | spiky sun ring + long rays + spoked disc + magenta ring; `.setColors({...})`. |
 | `kit.panelFan({count, r0, r1, gap, colors, seed, rotate})` | radial wedge panels. |
 | `kit.bg(type, {w, h, a, b, c, rings, vig, scale, center})` | background plane: `ripple`, `grad`, `ink`. Uniforms on `.u` (`uTime`, `uA`…). Put it far behind (`z = -6…-20`) and scale to cover the frustum. |
