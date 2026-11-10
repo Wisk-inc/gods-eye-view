@@ -23,7 +23,7 @@ void main(){ vec3 d = normalize(vD); float lon = degrees(atan(d.x, -d.z)), lat =
   // dimension: cloud shadows cooler and deeper, sunlit tops brighter (an S-curve on luminance)
   float L2 = clamp(dot(c, vec3(0.299, 0.587, 0.114)), 0.0, 1.0); float S2 = L2 * L2 * (3.0 - 2.0 * L2); c *= mix(0.78, 1.18, S2) ; c = mix(c, c * vec3(0.86, 0.94, 1.12), (1.0 - smoothstep(0.25, 0.65, L2)) * 0.7);
   gl_FragColor = vec4(c * uGain, 1.0); }`;
-const GOLD = { top: '#fff4c4', bot: '#d99a2b', side: '#7a4806', sideDark: '#1b0c00', rim: '#fffbe6', gain: 1.0, chrome: 0.45, rimAmt: 1.0 };
+const GOLD = { top: '#ffdc7a', bot: '#b8720f', side: '#5e3404', sideDark: '#120800', rim: '#fff3c8', gain: 0.92, chrome: 0.3, rimAmt: 0.9 };
 
 export default {
   build(ctx) {
@@ -39,7 +39,7 @@ export default {
     const motes = []; for (let i = 0; i < 70; i++) motes.push([R.range(-7, 7), R.range(-4, 4.5), -R.range(2.5, 14), R.range(0.02, 0.06)]);
     const moteMesh = kit.bokeh(motes, { color: '#ffd796', gain: 0.9, floor: 0.12 }); group.add(moteMesh);
     // ---- the sun's lens flare
-    const flare = kit.flare({ color: '#ffc77a', size: 4.2, streak: 12, ghosts: true, gain: 1.0 }); group.add(flare);
+    const flare = kit.flare({ color: '#ffc77a', size: 3.0, streak: 10, ghosts: true, gain: 0.8 }); group.add(flare);
 
     // ---- the word, in clear sky, backlit
     // place the word in clear sky left of the sun, measured from the camera's mid-shot pose
@@ -48,6 +48,7 @@ export default {
     const WP = M.pos.clone().addScaledVector(M.look, 9.0).addScaledVector(right, -0.85).addScaledVector(up, -0.35);
     const w = kit.word(words.s07 || 'HEAVEN', { size: 1.5, depth: 0.45, style: GOLD, seed: 7 }); w.group.position.copy(WP); w.set('uGrit', 0.0); w.set('uFaceAmt', 0.08); group.add(w.group);
     const halo = kit.plate(tex.glow, 11, 4.8, { color: '#ffcf7a', additive: true, opacity: 0 }); halo.position.copy(WP).add(new THREE.Vector3(0.4, 0, -1.4)); group.add(halo);
+    const shade = kit.plate(tex.glow, 13, 4.6, { color: '#1a1206', additive: false, opacity: 0 }); shade.position.copy(WP).addScaledVector(M.look, 1.6); shade.lookAt(M.pos); group.add(shade);
 
     const _p = new THREE.Vector3(), cam3 = new THREE.PerspectiveCamera(46, 16 / 9, 0.1, 1000);
     return { group, update(rf) {
@@ -62,11 +63,11 @@ export default {
       w.reset(1); w.intro(rf, { start: 84, stagger: 2.4, dur: 7, type: 'grow' });
       w.group.position.set(WP.x, WP.y + 0.05 * Math.sin(t * 1.1), WP.z); w.group.lookAt(pos); w.group.rotateY(0.3 - 0.12 * k); w.group.rotateX(-0.04); w.group.rotateZ(0.05 - 0.03 * k);
       w.set('uLight', new THREE.Vector3(0.75, 0.35, -0.25)); w.gain(0.95 + 0.2 * pulse(rf, 100.5, 7)); w.sweep(prog(rf, 100, 111), 0.75);
-      halo.material.opacity = 0.2 * prog(rf, 88, 100) * (1 - prog(rf, 112, 117));
+      halo.material.opacity = 0.12 * prog(rf, 88, 100) * (1 - prog(rf, 112, 117)); shade.material.opacity = 0.42 * prog(rf, 84, 96) * (1 - prog(rf, 111, 116));
       // sun: flare position on the sky sphere, its screen position drives the light rays
       const sunW = pos.clone().addScaledVector(SUN, 60); flare.position.copy(sunW);
       cam3.position.copy(pos); cam3.lookAt(tgt); cam3.updateMatrixWorld(); _p.copy(sunW).project(cam3); const sx = _p.x * 0.5 + 0.5, sy = _p.y * 0.5 + 0.5;
-      const bloomOut = prog(rf, 111.5, 117.8, 'in2'); flare.setIntensity(0.7 + 0.1 * Math.sin(t * 2.0) + 1.3 * bloomOut);
+      const bloomOut = prog(rf, 111.5, 117.8, 'in2'); flare.setIntensity(0.55 + 0.08 * Math.sin(t * 2.0) + 1.3 * bloomOut);
       su.uGain.value = 1.0 + 0.5 * bloomOut;
       const open = 1 - prog(rf, 78, 86, 'out2');
       return { cam: { pos, tgt, roll: lerp(-1.0, 1.2, k), fov: 46, aperture: 0.03, focus: pos.distanceTo(WP) }, clear: 0xb8c8d8, post: {
