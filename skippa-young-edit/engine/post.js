@@ -15,6 +15,7 @@ export const POST_DEFAULTS = {
   warp: 0, warpScale: 2.2,
   flash: 0, flashColor: [1, 1, 1], fade: 0,
   irisDisc: 0, irisHole: 9, irisRim: [1, 0.04, 0.08], irisRimW: 0.16, irisCenter: [0.5, 0.5], irisBg: [1, 1, 1],
+  streak: 0.4, shoulder: 1,   // streak: anamorphic light streaks; shoulder: filmic highlight roll-off (0 = hard clip)
   bars: 0, barsAlpha: 0.9, barsGlow: 0.32, barsGlowColor: [0.92, 0.96, 1.0],   // barsGlow: visor light on the letterbox edges
   flat: 0, flatColor: [0.5, 0.5, 0.5], band: 0, bandColor: [1, 1, 1],
   mirror: 0, slices: 0, glitch: 0, edge: 0, rgbSplit: 0,
@@ -51,7 +52,7 @@ uniform float uVignette; uniform float uChroma; uniform float uZoomBlur; uniform
 uniform float uWarp; uniform float uWarpScale;
 uniform float uFlash; uniform float uFade; uniform vec3 uFlashColor;
 uniform float uIrisDisc; uniform float uIrisHole; uniform float uIrisRimW; uniform vec3 uIrisRim; uniform vec3 uIrisBg; uniform vec2 uIrisCenter;
-uniform float uBars; uniform float uBarsAlpha; uniform float uBarsGlow; uniform vec3 uBarsGlowColor;
+uniform float uStreak; uniform float uShoulder; uniform float uBars; uniform float uBarsAlpha; uniform float uBarsGlow; uniform vec3 uBarsGlowColor;
 uniform float uFlat; uniform float uBand; uniform vec3 uFlatColor; uniform vec3 uBandColor;
 uniform float uMirror; uniform float uSlices; uniform float uGlitch; uniform float uEdge; uniform float uRgbSplit;
 uniform float uSmoke; uniform vec3 uSmokeColor;
@@ -106,8 +107,10 @@ void main(){
   }
   if (uRgbSplit > 0.001) { col.r = texture2D(tScene, mir(uv + vec2(uRgbSplit*0.018, 0.0))).r; col.b = texture2D(tScene, mir(uv - vec2(uRgbSplit*0.018, 0.0))).b; }
   vec2 buv = mir(uv);
-  vec3 bl = texture2D(tB0, buv).rgb*0.34 + texture2D(tB1, buv).rgb*0.28 + texture2D(tB2, buv).rgb*0.22 + texture2D(tB3, buv).rgb*0.18;
+  vec3 bl = texture2D(tB0, buv).rgb*0.30 + texture2D(tB1, buv).rgb*0.27 + texture2D(tB2, buv).rgb*0.25 + texture2D(tB3, buv).rgb*0.28;
   col += bl * uBloom * uBloomTint;
+  // ---- anamorphic streak: the brightest lights smear into soft horizontal lines, like a cine lens
+  if (uStreak > 0.001) { vec3 st = vec3(0.0); for (int i = -7; i <= 7; i++) { float o = float(i) * 0.017; st += texture2D(tB2, mir(buv + vec2(o, 0.0))).rgb * (1.0 - abs(float(i)) / 8.0); } col += st / 8.0 * uStreak * mix(vec3(1.0), uBloomTint, 0.5) * vec3(0.8, 0.9, 1.0); }
   // ---- light rays (shine): the bright pass smeared outward from a centre
   if (uRays > 0.001) { vec3 ra = vec3(0.0); for (int i = 0; i < 14; i++) { float f = (float(i) + hash(gl_FragCoord.xy + float(i)*3.1)) / 14.0; ra += texture2D(tB1, mir(buv + (uRaysCenter - buv) * f * 0.6)).rgb * (1.0 - f); } col += ra / 5.0 * uRays * uBloomTint; }
   // ---- edge-detect (contour glitch frame)
@@ -121,6 +124,8 @@ void main(){
   col = mix(vec3(l), col, uSaturation * (1.0 - uDesat));
   col = (col - 0.5) * uContrast + 0.5;
   col *= uTint; col = max(col, 0.0);
+  // ---- filmic shoulder: highlights roll off toward white instead of clipping flat (glow stays rich, nothing looks over-exposed)
+  if (uShoulder > 0.5) { vec3 x = col * 1.05; vec3 t = vec3(0.7); vec3 y = t + (1.0 - t) * (1.0 - exp(-(x - t) / (1.0 - t))); col = mix(x, y, step(t, x)); }
   col = mix(col, 1.0 - min(col, vec3(1.0)), uInvert);
   // ---- vignette
   vec2 vq = (vUv - 0.5) * vec2(aspect, 1.0); float vr = length(vq) / length(vec2(aspect*0.5, 0.5));
@@ -173,7 +178,7 @@ export class Post {
     this.uF = { tScene: U(null), tB0: U(null), tB1: U(null), tB2: U(null), tB3: U(null), tMark: U(tex.mark), tNoise: U(tex.noise), uRes: U(new THREE.Vector2(w, h)), uTime: U(0),
       uExposure: U(1), uContrast: U(1), uSaturation: U(1), uDesat: U(0), uInvert: U(0), uTint: U(v3()), uBloom: U(1), uBloomTint: U(v3()), uVignette: U(0.5), uChroma: U(0), uZoomBlur: U(0), uZoomCenter: U(v2()),
       uWarp: U(0), uWarpScale: U(2), uFlash: U(0), uFade: U(0), uFlashColor: U(v3()), uIrisDisc: U(0), uIrisHole: U(9), uIrisRimW: U(0.16), uIrisRim: U(v3()), uIrisBg: U(v3()), uIrisCenter: U(v2()),
-      uBars: U(0), uBarsAlpha: U(0.9), uBarsGlow: U(0), uBarsGlowColor: U(v3()), uFlat: U(0), uBand: U(0), uFlatColor: U(v3()), uBandColor: U(v3()), uMirror: U(0), uSlices: U(0), uGlitch: U(0), uEdge: U(0), uRgbSplit: U(0), uSmoke: U(0), uSmokeColor: U(v3()),
+      uStreak: U(0), uShoulder: U(1), uBars: U(0), uBarsAlpha: U(0.9), uBarsGlow: U(0), uBarsGlowColor: U(v3()), uFlat: U(0), uBand: U(0), uFlatColor: U(v3()), uBandColor: U(v3()), uMirror: U(0), uSlices: U(0), uGlitch: U(0), uEdge: U(0), uRgbSplit: U(0), uSmoke: U(0), uSmokeColor: U(v3()),
       uGrain: U(0.03), uScratches: U(0), uShake: U(v2()), uZoom: U(1), uRotate: U(0), uLeak: U(0), uLeakColor: U(v3()), uLeakPos: U(v2()), uLeakSize: U(0.9), uSharpen: U(0.3), uLens: U(0), uRays: U(0), uRaysCenter: U(v2()), tDust: U(tex.dustfx), uDust: U(0.5), tOvlA: U(tex.white), tOvlB: U(tex.white), uOvlA: U(new THREE.Vector4(0, 8, 8, 0)), uOvlB: U(new THREE.Vector4(0, 8, 8, 0)), uOvlAX: U(new THREE.Vector4(1, 0, 0, 0)), uOvlBX: U(new THREE.Vector4(1, 0, 0, 0)), uOvlATint: U(v3()), uOvlBTint: U(v3()), tGrunge: U((tex.pack && tex.pack.grunge5) || tex.white), uGrunge: U(0), uMark: U(0.4), uMarkRect: U(new THREE.Vector4(0.5, 0.03, 0.07, 0.02)) };
     this.mFinal = sm(FS_FINAL, this.uF);
     const markH = 0.021; this.uF.uMarkRect.value.set(0.5, 0.032, (markH * tex.markAspect * h) / w, markH);
@@ -200,7 +205,7 @@ export class Post {
     S('uBloom', P.bloom); V('uBloomTint', P.bloomTint); S('uVignette', P.vignette); S('uChroma', P.chroma); S('uZoomBlur', P.zoomBlur); V('uZoomCenter', P.zoomCenter);
     S('uWarp', P.warp); S('uWarpScale', P.warpScale); S('uFlash', P.flash); S('uFade', P.fade); V('uFlashColor', P.flashColor);
     S('uIrisDisc', P.irisDisc); S('uIrisHole', P.irisHole); S('uIrisRimW', P.irisRimW); V('uIrisRim', P.irisRim); V('uIrisBg', P.irisBg); V('uIrisCenter', P.irisCenter);
-    S('uBars', P.bars); S('uBarsAlpha', P.barsAlpha); S('uBarsGlow', P.barsGlow); V('uBarsGlowColor', P.barsGlowColor); S('uFlat', P.flat); S('uBand', P.band); V('uFlatColor', P.flatColor); V('uBandColor', P.bandColor);
+    S('uStreak', P.streak); S('uShoulder', P.shoulder); S('uBars', P.bars); S('uBarsAlpha', P.barsAlpha); S('uBarsGlow', P.barsGlow); V('uBarsGlowColor', P.barsGlowColor); S('uFlat', P.flat); S('uBand', P.band); V('uFlatColor', P.flatColor); V('uBandColor', P.bandColor);
     S('uMirror', P.mirror); S('uSlices', P.slices); S('uGlitch', P.glitch); S('uEdge', P.edge); S('uRgbSplit', P.rgbSplit); S('uSmoke', P.smoke); V('uSmokeColor', P.smokeColor);
     S('uDust', P.dust); S('uGrunge', this.tex.pack && this.tex.pack.grunge5 ? P.grunge : 0);
     for (const slot of ['A', 'B']) { const o = P['ovl' + slot]; const T = o && this.tex.ovl && this.tex.ovl[o.clip]; const U4 = u['uOvl' + slot].value;

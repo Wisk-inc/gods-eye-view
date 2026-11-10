@@ -11,7 +11,7 @@ export default {
     const { THREE, kit, tex, words } = ctx; const group = new THREE.Group(); const R = rng(160);
     const CARD = { fill: '#b8141c', fill2: '#62050b', outline: '#ffe6d6', ow: 0.04, r: 0.07 };
 
-    const bg = kit.bg('grad', { a: '#5c0e1e', b: '#0a0206', vig: 0.9, scale: 1.15, w: 160, h: 90 }); bg.position.z = -22; group.add(bg);
+    const bg = kit.bg('grad', { a: '#3c0a14', b: '#070104', vig: 0.9, scale: 1.15, w: 160, h: 90 }); bg.position.z = -22; group.add(bg);
     const haze = []; for (let i = 0; i < 8; i++) { const s = R.range(8, 15); const m = kit.plate(tex.smoke, s, s, { color: R.pick(['#a01438', '#7a1030', '#c02048']), additive: true, opacity: R.range(0.08, 0.16) }); m.position.set(R.range(-12, 12), R.range(-6, 6), R.range(-14, -6)); m.userData = { sp: R.range(-0.004, 0.004) }; group.add(m); haze.push(m); }
 
     // ---- the sunburst
@@ -92,7 +92,7 @@ export default {
         desat: track([[205.5, 0], [213, 1, 'io2'], [219.5, 1], [221, 0.5, 'out2'], [236, 0.55], [241, 1, 'in2']], rf),
         zoomBlur: Math.max(0.5 * (1 - prog(rf, 159.5, 163.5, 'out2')), 0.8 * punch, 0.55 * giant, 0.6 * prog(rf, 237, 241, 'in2')),
         bloom: 0.62 + 0.4 * punch + 0.2 * (pulse(rf, 161.4, 5) + pulse(rf, 193, 5) + pulse(rf, 208.7, 5) + pulse(rf, 224.5, 5)), bloomThreshold: 0.86, vignette: 0.85, saturation: 1.06, contrast: 1.1,
-        exposure: (1.06 + 0.3 * punch + 0.14 * (pulse(rf, 161.4, 4) + pulse(rf, 177.2, 4) + pulse(rf, 193, 4) + pulse(rf, 208.7, 4) + pulse(rf, 224.5, 4))) * lerp(1, 0.5, prog(rf, 237, 241, 'in2')),
+        exposure: (0.98 + 0.3 * punch + 0.14 * (pulse(rf, 161.4, 4) + pulse(rf, 177.2, 4) + pulse(rf, 193, 4) + pulse(rf, 208.7, 4) + pulse(rf, 224.5, 4))) * lerp(1, 0.5, prog(rf, 237, 241, 'in2')),
         chroma: 0.0014 + 0.006 * punch + 0.003 * giant, lens: 0.12 * punch + 0.07 * (pulse(rf, 161.4, 6) + pulse(rf, 193, 6) + pulse(rf, 224.5, 6)),
         zoom: 1 + 0.03 * (pulse(rf, 161.4, 5) + pulse(rf, 177.2, 5) + pulse(rf, 193, 5) + pulse(rf, 208.7, 5) + pulse(rf, 224.5, 5)),
         bars: track([[160, 0.03], [164, 0.05, 'out3'], [200, 0.05], [206, 0.082, 'out3'], [218, 0.082], [222, 0.045], [241, 0.03]], rf), barsAlpha: 0.92,

@@ -11,7 +11,7 @@ export default {
     const { THREE, kit, tex, words } = ctx; const group = new THREE.Group();
 
     // --- backgrounds
-    const ripple = kit.bg('ripple', { a: '#7a100e', b: '#180102', c: '#c22e26', rings: 30, vig: 0.95 }); ripple.position.z = -6; group.add(ripple);
+    const ripple = kit.bg('ripple', { a: '#4a0a0a', b: '#0b0001', c: '#8e1f1b', rings: 30, vig: 0.98 }); ripple.position.z = -6; group.add(ripple);
     const dark = kit.bg('grad', { a: '#4c0508', b: '#080001', vig: 0.9, scale: 1.3 }); dark.position.z = -6; group.add(dark);
 
     // --- word s03
@@ -84,7 +84,7 @@ export default {
       }
       const cam = kit.cam(first ? camA : camB, rf); const sh = kit.shake(rf, 0.035, 0.45, 2); cam.pos.add(sh);
       return { cam, clear: first ? 0x200002 : 0x080001, post: {
-        bloom: first ? 0.75 : 0.65, bloomThreshold: 0.8, vignette: first ? 0.7 : 0.85, chroma: 0.0016 + 0.004 * pulse(rf, 33, 4),
+        bloom: first ? 0.75 : 0.65, bloomThreshold: 0.8, vignette: first ? 0.9 : 0.9, chroma: 0.0016 + 0.004 * pulse(rf, 33, 4),
         bars: track([[21, 0], [35, 0], [38, 0.042, 'out3'], [48, 0.05]], rf), barsAlpha: 0.92,
         zoomBlur: 0.55 * prog(rf, 44.5, 48, 'in2'), exposure: 1 + 0.18 * pulse(rf, 23, 4) + 0.15 * pulse(rf, 36, 4), saturation: 1.12,
       } };

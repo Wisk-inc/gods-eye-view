@@ -21,7 +21,7 @@ export default {
     ghost.group.position.set(-0.5, 1.75, -1.6); ghost.group.rotation.set(-0.35, 0.25, -0.08); group.add(ghost.group);
 
     // the word
-    const w = kit.word(words.s16 || 'SLEEP', { size: 1, depth: 0.55, style: 'silver', seed: 16 });
+    const w = kit.word(words.s16 || 'SLEEP', { size: 1, depth: 0.55, style: { top: '#cfd2d4', bot: '#6e7377', side: '#2a2d30', sideDark: '#040405', rim: '#f2f4f5', gain: 0.95, chrome: 0.3, rimAmt: 0.8 }, seed: 16 });
     w.group.position.set(0.55, -0.4, 0); group.add(w.group);
     const halo = kit.plate(tex.glow, 8, 4.4, { color: '#aeb6c0', additive: true, opacity: 0.16 }); halo.position.set(0.55, -0.4, -0.9); group.add(halo);
 

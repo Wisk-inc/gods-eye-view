@@ -14,14 +14,14 @@ export default {
 
     const makeSet = (seed, cards, withPanels) => {
       const g = new THREE.Group(); const R = rng(seed);
-      const bg = kit.bg('grad', { a: '#44101c', b: '#0b0207', vig: 0.9, scale: 1.2, w: 120, h: 70 }); bg.position.z = -16; g.add(bg);
+      const bg = kit.bg('grad', { a: '#2e0a14', b: '#070104', vig: 0.9, scale: 1.2, w: 120, h: 70 }); bg.position.z = -16; g.add(bg);
       if (withPanels) [
-        { pts: [[-2.2, -7], [-0.4, 0.2], [4.6, -1.8], [5.2, -7]], c: '#a81c3c', z: -3.2 }, { pts: [[-9, -7], [-6.2, -1.2], [-2.6, -7]], c: '#74102c', z: -3.6 },
-        { pts: [[4.9, -7], [5.0, -1.9], [11, 1.6], [11, -7]], c: '#c82c4c', z: -3.9 }, { pts: [[-10, 7], [-9.5, 2.6], [-3.4, 4.2], [-2.8, 7]], c: '#560c22', z: -4.4 },
-        { pts: [[2.4, 7], [3.6, 3.3], [10, 2.4], [10, 7]], c: '#801434', z: -4.8 },
+        { pts: [[-2.2, -7], [-0.4, 0.2], [4.6, -1.8], [5.2, -7]], c: '#7a1430', z: -3.2 }, { pts: [[-9, -7], [-6.2, -1.2], [-2.6, -7]], c: '#520c20', z: -3.6 },
+        { pts: [[4.9, -7], [5.0, -1.9], [11, 1.6], [11, -7]], c: '#8e1e38', z: -3.9 }, { pts: [[-10, 7], [-9.5, 2.6], [-3.4, 4.2], [-2.8, 7]], c: '#3c0818', z: -4.4 },
+        { pts: [[2.4, 7], [3.6, 3.3], [10, 2.4], [10, 7]], c: '#5a0e26', z: -4.8 },
       ].forEach((f) => { const m = kit.poly(f.pts, { color: f.c }); m.position.z = f.z; g.add(m); });
       const cs = cards.map((c) => { const q = kit.quad({ ...CARD, w: c[3], h: c[4] }); q.position.set(c[0], c[1], c[2]); q.rotation.set(c[5], c[6], c[7]); q.userData = { p: [c[0], c[1], c[2]], r: [c[5], c[6], c[7]], ph: R() * 6 }; g.add(q); return q; });
-      const rings = kit.bubbles({ count: 30, box: [12, 7, 4], center: [0, 0, 0.2], size: [0.16, 0.85], seed: seed + 1, kinds: ['ring', 'ringBold', 'ringBold', 'ring'], avoid: 1.2, gain: 1.25 }); g.add(rings);
+      const rings = kit.bubbles({ count: 46, box: [13, 7.5, 5], center: [0, 0, 0.2], size: [0.1, 0.8], seed: seed + 1, kinds: ['ring', 'ringBold', 'ringBold', 'ring'], avoid: 1.2, gain: 1.25 }); g.add(rings);
       const ringsFar = kit.bubbles({ count: 14, box: [22, 12, 4], center: [0, 0, -6], size: [0.1, 0.4], seed: seed + 2, kinds: ['ringOpen', 'ringThin'], opacity: 0.45 }); g.add(ringsFar);
       const dust = kit.dust({ count: 200, box: [16, 9, 9], size: 0.04, seed: seed + 3, color: '#ffd0dc', opacity: 0.8 }); g.add(dust);
       const glow = kit.plate(tex.glow, 13, 7, { color: '#ff1c50', additive: true, opacity: 0.2 }); glow.position.z = -1.4; g.add(glow);
@@ -39,7 +39,7 @@ export default {
       kit.ribbon(kit.arc(4.4, 205, 260, 18, { center: [0.2, 1.2, -0.6], squash: 0.7 }), { width: 0.07, gain: 1.3 }),
     ]; strokes1.forEach((r) => S1.g.add(r.mesh));
 
-    const w10 = kit.word(words.s10 || 'WITH', { size: 1.08, depth: 0.6, style: { top: '#ff9690', bot: '#cc1e28', side: '#8e0c14', sideDark: '#2a0206', rim: '#ffffff', gain: 1.0, chrome: 0.1, rimAmt: 0.95 }, seed: 10 }); S2.g.add(w10.group);
+    const w10 = kit.word(words.s10 || 'WITH', { size: 1.3, depth: 0.6, style: { top: '#ff9690', bot: '#cc1e28', side: '#8e0c14', sideDark: '#2a0206', rim: '#ffffff', gain: 1.0, chrome: 0.1, rimAmt: 0.95 }, seed: 10 }); S2.g.add(w10.group);
     const flashGlow = kit.plate(tex.glow, 10, 5.5, { color: '#ffd0dc', additive: true, opacity: 0 }); flashGlow.position.z = 0.4; S2.g.add(flashGlow);
     const strokes2 = [
       kit.ribbon([[3.0, 3.6, 0.7], [3.9, 1.6, 0.7], [5.2, -0.2, 0.7], [6.6, -1.4, 0.7]], { width: 0.36, taper: 0.45, gain: 1.35 }),

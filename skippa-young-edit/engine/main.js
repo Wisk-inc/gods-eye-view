@@ -71,8 +71,10 @@ function sectionAt(rf) { for (const s of S.sections) if (rf >= s.def.range[0] &&
 
 /** Render output frame n to the canvas. Returns a JPEG data URL (or null with {noRead:true}). */
 export function renderFrame(n, opts = {}) {
-  const { cfg, renderer, post, scene, camera } = S; const N = opts.samples || cfg.samples; const sh = opts.shutter ?? cfg.shutter;
+  const { cfg, renderer, post, scene, camera } = S; const base = opts.samples || cfg.samples; const sh = opts.shutter ?? cfg.shutter;
   const t0 = n / cfg.fps; const rf0 = Math.max(0, rfAt(t0, cfg)); const sec = sectionAt(rf0);
+  // adaptive sampling: fast stretches of the edit (whips, entrances) get up to 2.4x the sub-frames, so motion blur is silky where it matters
+  const speed = Math.abs(rfAt(t0 + 0.5 / cfg.fps, cfg) - rfAt(t0 - 0.5 / cfg.fps, cfg)); const N = base <= 2 ? base : Math.min(26, Math.round(base * (1 + 1.4 * Math.min(1, Math.max(0, (speed - 0.42) / 0.55)))));
   for (const s of S.sections) s.inst.group.visible = s === sec;
   post.begin(); let P = { ...POST_DEFAULTS };
   if (sec) {
@@ -93,6 +95,7 @@ export function renderFrame(n, opts = {}) {
       post.sample(scene, camera, 1 / N, out.clear ?? 0x000000);
       if (k === mid || N === 1) { P = { ...POST_DEFAULTS, ...(out.post || {}) };
         // cfg.calm (0..1) damps exposure pumping and flashes so hits read as light, not as a brightness slider
+        P.contrast *= cfg.mood ?? 1.05;   // a touch more contrast everywhere: the filmic shoulder keeps the highlights
         if (cfg.calm > 0) { if (P.exposure > 1) P.exposure = 1 + (P.exposure - 1) * (1 - cfg.calm); P.flash *= 1 - 0.55 * cfg.calm; P.bloom *= 1 - 0.2 * cfg.calm; } }
     }
   } else { P.fade = 1; P.mark = 0; }
