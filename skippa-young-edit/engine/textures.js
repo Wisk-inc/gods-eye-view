@@ -192,6 +192,10 @@ function textPlate(text, { font = 'Bebas Neue', px = 180, weight = 400, skew = 0
   return c;
 }
 
+async function loadImage(url, { repeat = false } = {}) {
+  try { const t = await new THREE.TextureLoader().loadAsync(url); t.colorSpace = THREE.NoColorSpace; if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; return t; } catch (e) { return null; }
+}
+
 export async function makeTextures(cfg = {}) {
   if (document.fonts) { await Promise.all(["700 40px 'Teko'", "400 40px 'Bebas Neue'", "700 40px 'Antonio'"].map((f) => document.fonts.load(f).catch(() => null))); }
   const T = {};
@@ -209,6 +213,11 @@ export async function makeTextures(cfg = {}) {
   T.ctaAspect = T.cta.image.width / T.cta.image.height;
   T.mark = tex(textPlate(cfg.watermark || 'SKIPPA · YOUNG', { font: 'Teko', weight: 700, px: 96, stroke: 3, spacing: 6, pad: 16 }));
   T.markAspect = T.mark.image.width / T.mark.image.height;
+  // real-world assets (see engine/assets/CREDITS.md); every one has a fallback so the engine runs without them
+  const [cw, cg] = canvas(4, 4); cg.fillStyle = '#fff'; cg.fillRect(0, 0, 4, 4); T.white = tex(cw, { repeat: true });
+  const A = cfg.assetBase || 'assets/';
+  const [earth, moon, env, grit, wood] = await Promise.all([loadImage(A + 'earth.jpg'), loadImage(A + 'moon.jpg', { repeat: true }), loadImage(A + 'env.jpg', { repeat: true }), loadImage(A + 'grit.jpg', { repeat: true }), loadImage(A + 'wood.jpg', { repeat: true })]);
+  T.earth = earth; if (moon) T.moon = moon; T.env = env; T.grit = grit || T.white; T.wood = wood;
   T.make = { textPlate: (t, o) => tex(textPlate(t, o)), tex };
   return T;
 }

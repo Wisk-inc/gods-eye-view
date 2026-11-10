@@ -27,6 +27,8 @@ void main(){ vNo = normal; vN = normalize(normalMatrix * normal); vPos = positio
 const TEXT_FS = /* glsl */ `
 uniform vec3 uTop; uniform vec3 uBot; uniform vec3 uSide; uniform vec3 uSideDark; uniform vec3 uRim; uniform vec3 uLight;
 uniform float uCap; uniform float uDepth; uniform float uGain; uniform float uOpacity; uniform float uChrome; uniform float uRimAmt; uniform float uDesat; uniform float uGrit; uniform float uSweep; uniform float uSweepAmt; uniform float uHomeX;
+uniform sampler2D tEnv; uniform sampler2D tGrit; uniform float uEnvAmt;
+vec3 envAt(vec3 r){ return texture2D(tEnv, vec2(atan(r.x, -r.z) / 6.2831853 + 0.5, asin(clamp(r.y, -1.0, 1.0)) / 3.14159265 + 0.5)).rgb; }
 float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1.0,0.0)), f.x), mix(h2(i+vec2(0.0,1.0)), h2(i+vec2(1.0,1.0)), f.x), f.y); }
 varying vec3 vN; varying vec3 vNo; varying vec3 vPos; varying vec3 vView;
@@ -37,9 +39,15 @@ void main(){
   float bevel = smoothstep(0.12, 0.55, vNo.z) * (1.0 - face);
   float gy = clamp(vPos.y / uCap + 0.5, 0.0, 1.0);
   vec3 faceCol = mix(uBot, uTop, smoothstep(0.02, 0.92, gy));
-  vec3 r = reflect(-v, n);
+  vec2 gp0 = vPos.xy / uCap; float wear = texture2D(tGrit, gp0 * 0.42).r;
+  // real studio reflections: the lighting map is sampled along the reflection vector, with the surface wear
+  // nudging the normal so highlights break up like brushed metal
+  vec3 nb = normalize(n + vec3((wear - 0.5) * 0.22, (texture2D(tGrit, gp0 * 0.42 + 0.37).r - 0.5) * 0.22, 0.0) * face);
+  vec3 r = reflect(-v, nb); vec3 env = envAt(r); float el = dot(env, vec3(0.333));
   float band = smoothstep(-0.35, 0.45, r.y + 0.25 * sin(vPos.x * 3.0 / uCap));
-  faceCol *= mix(1.0, mix(0.62, 1.18, band), uChrome);
+  faceCol *= mix(1.0, mix(0.62, 1.18, band), uChrome * (1.0 - uEnvAmt));
+  faceCol = mix(faceCol, faceCol * (0.5 + 0.95 * min(el, 1.1)) + env * 0.1, uChrome * uEnvAmt);
+  faceCol *= 1.0 - uGrit * 1.1 * (wear - 0.5);
   // worn surface: mottling + fine diagonal scratches
   vec2 gp = vPos.xy / uCap; float grit = vn(gp*16.0)*0.55 + vn(gp*41.0)*0.3 + vn(vec2(gp.x*90.0 + gp.y*60.0, gp.y*6.0))*0.15;
   faceCol *= 1.0 - uGrit * (grit - 0.42) * 1.6;
@@ -48,6 +56,7 @@ void main(){
   float ndl = dot(n, normalize(uLight)) * 0.5 + 0.5;
   float dz = clamp(-vPos.z / max(uDepth, 1e-4), 0.0, 1.0);
   vec3 sideCol = mix(uSide, uSideDark, smoothstep(0.0, 1.0, dz)) * mix(0.5, 1.25, ndl);
+  sideCol = mix(sideCol, sideCol * (0.5 + 1.2 * min(el, 1.1)) + env * 0.08, uChrome * uEnvAmt * 0.85);
   vec3 col = mix(sideCol, faceCol, face);
   col = mix(col, uRim, bevel * uRimAmt);
   float fr = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0);
@@ -83,7 +92,8 @@ class Word {
     const total = advs.reduce((a, b) => a + b, 0); this.width = total; this.height = this.size;
     this.uniformsBase = () => ({
       uTop: { value: COL('#fff') }, uBot: { value: COL('#fff') }, uSide: { value: COL('#888') }, uSideDark: { value: COL('#111') }, uRim: { value: COL('#fff') },
-      uLight: { value: new THREE.Vector3(0.35, 0.8, 0.6) }, uCap: { value: this.size }, uDepth: { value: this.depth }, uGain: { value: 1 }, uOpacity: { value: 1 }, uChrome: { value: 0 }, uRimAmt: { value: 0.9 }, uDesat: { value: 0 }, uGrit: { value: 0.16 }, uSweep: { value: -99 }, uSweepAmt: { value: 0 }, uHomeX: { value: 0 },
+      uLight: { value: new THREE.Vector3(0.35, 0.8, 0.6) }, uCap: { value: this.size }, uDepth: { value: this.depth }, uGain: { value: 1 }, uOpacity: { value: 1 }, uChrome: { value: 0 }, uRimAmt: { value: 0.9 }, uDesat: { value: 0 }, uGrit: { value: 0.1 }, uSweep: { value: -99 }, uSweepAmt: { value: 0 }, uHomeX: { value: 0 },
+      tEnv: { value: kit.tex.env || kit.tex.white }, tGrit: { value: kit.tex.grit || kit.tex.white }, uEnvAmt: { value: kit.tex.env ? 1 : 0 },
     });
     let cursor = -total / 2;
     chars.forEach((ch, i) => {
@@ -187,7 +197,7 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
       const geo = new THREE.ShapeGeometry(roundRect(w, h, r), 3); const c1 = COL(fill).multiplyScalar(gain), c2 = COL(fill2 || fill).multiplyScalar(gain * (fill2 ? 1 : 0.62));
       const cols = new Float32Array(geo.attributes.position.count * 3); for (let i = 0; i < geo.attributes.position.count; i++) { const t = geo.attributes.position.getY(i) / h + 0.5; const c = c2.clone().lerp(c1, t); cols.set([c.r, c.g, c.b], i * 3); }
       geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-      g.fillMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); g.add(g.fillMesh);
+      g.fillMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, map: o.grain === false ? null : (tex.wood || null), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); g.add(g.fillMesh);
     }
     if (outline && ow > 0) { const sh = roundRect(w + ow, h + ow, r + ow / 2); sh.holes.push(new THREE.Path(roundRect(w - ow, h - ow, Math.max(0.001, r - ow / 2)).getPoints(3).reverse())); const m = new THREE.Mesh(new THREE.ShapeGeometry(sh, 3), new THREE.MeshBasicMaterial({ color: COL(outline).multiplyScalar(outlineGain), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); m.position.z = 0.002; g.outlineMesh = m; g.add(m); }
     return g;
@@ -320,7 +330,7 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
   };
 
   // ---- flat shape from a list of [x,y] points
-  kit.poly = (pts, o = {}) => { const { color = '#ffffff', gain = 1, opacity = 1 } = o; const s = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], p[1]))); return new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: COL(color).multiplyScalar(gain), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); };
+  kit.poly = (pts, o = {}) => { const { color = '#ffffff', gain = 1, opacity = 1 } = o; const s = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], p[1]))); const geo = new THREE.ShapeGeometry(s); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.22, uv.getY(i) * 0.22); return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: COL(color).multiplyScalar(gain), map: o.grain === false ? null : (tex.wood || null), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); };
 
   // ---- camera keyframes: [{rf, p:[x,y,z], t:[x,y,z], roll:deg, fov:deg, e:'io3'}]
   kit.cam = (keys, rf) => {

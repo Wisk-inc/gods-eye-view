@@ -83,7 +83,7 @@ export default {
       sb.rotation.z = 0.4 + (rf - 241) * 0.006; sb.scale.setScalar(lerp(0.8, 1, prog(rf, 241, 250, 'out3')));
       rings.drift(rf - 241, 0.006, 0.05); ringsFar.drift(rf - 241, 0.004, 0.08); ringsNear.drift(rf - 241, 0.012, 0.1);
       dust.drift(rf - 241, [0.004, 0.009, 0.0], 0.07); dustNear.drift(rf - 241, [0.01, 0.016, 0], 0.1);
-      glints.forEach((g) => { const k = pulse(rf, g.userData.t, 4.5, 1.2); g.material.opacity = 0.95 * k; const s = 0.5 + 1.1 * k; g.scale.set(s, s, 1); g.material.rotation = (rf - g.userData.t) * 0.09; });
+      glints.forEach((g) => { const k = pulse(rf, g.userData.t, 4.5, 1.2); g.material.opacity = 0.95 * k; const s = 0.3 + 0.5 * k; g.scale.set(s, s, 1); g.material.rotation = (rf - g.userData.t) * 0.09; });
 
       const cam = kit.cam(camKeys, rf); cam.pos.add(kit.shake(rf, 0.03, 0.4, 5)); cam.aperture = 0.07; cam.focus = cam.pos.z;
       const wash = prog(rf, 258.5, 264.6, 'in2');
