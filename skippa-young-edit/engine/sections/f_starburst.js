@@ -35,9 +35,9 @@ export default {
 
     // ---- words (all sit at the centre of the ring)
     const W = (key, fb, size, style, seed, depth = 0.55) => { const w = kit.word(words[key] || fb, { size, depth, style, seed }); w.group.position.set(0, 0, 0.4); group.add(w.group); return w; };
-    const w11 = W('s11', 'MY', 1.0, 'pinkWhite', 11), w12 = W('s12', 'MYSELF', 0.5, 'pinkWhite', 12), w13 = W('s13', 'EVERY', 0.6, 'redSolid', 13), w14 = W('s14', 'NIGHT', 0.6, 'pinkWhite', 14, 0.7), w15 = W('s15', 'NO', 1.0, 'redSolid', 15);
+    const w11 = W('s11', 'MY', 1.0, 'pinkWhite', 11), w12 = W('s12', 'MYSELF', 0.62, 'pinkWhite', 12), w13 = W('s13', 'EVERY', 0.68, 'redSolid', 13), w14 = W('s14', 'NIGHT', 0.6, 'pinkWhite', 14, 0.7), w15 = W('s15', 'NO', 1.0, 'redSolid', 15);
     const plate = kit.quad({ ...CARD, w: w11.width + 0.7, h: 1.5 }); plate.position.set(0, 0, 0.12); group.add(plate);
-    const streakA = kit.ribbon([[-8, 0.25, 0.9], [-2.5, 0.05, 0.9], [2.5, 0.0, 0.9], [8, -0.25, 0.9]], { width: 0.18, taper: 0.5, gain: 1.4 });
+    const streakA = kit.ribbon([[-8, -0.7, 0.9], [-2.5, -0.92, 0.9], [2.5, -0.98, 0.9], [8, -1.2, 0.9]], { width: 0.16, taper: 0.5, gain: 1.4 });
     const streakB = kit.ribbon([[-7.5, 0.1, 0.8], [-4.2, 0.02, 0.8], [-1.0, 0.0, 0.8]], { width: 0.14, taper: 0.5, gain: 1.4 });
     const vert = [kit.ribbon([[-1.5, 3.6, 0.9], [-1.15, 1.2, 0.9], [-1.4, -1.2, 0.9], [-1.0, -3.6, 0.9]], { width: 0.13, taper: 0.5, gain: 1.4 }), kit.ribbon([[1.7, -3.6, 0.9], [1.3, -1.0, 0.9], [1.6, 1.4, 0.9], [1.2, 3.6, 0.9]], { width: 0.13, taper: 0.5, gain: 1.4 })];
     const sweeps = [kit.ribbon(kit.arc(4.6, 150, 250, 22, { center: [0, 0, 1.2], squash: 0.6 }), { width: 0.09, gain: 1.35 }), kit.ribbon(kit.arc(5.4, -40, 60, 22, { center: [0, 0, -1.4], squash: 0.6 }), { width: 0.08, gain: 1.35 }), kit.ribbon(kit.arc(6.6, 60, 130, 22, { center: [0, 0, 0.6], squash: 0.5 }), { width: 0.2, gain: 1.35 }), kit.ribbon(kit.arc(7.2, 215, 300, 22, { center: [0, 0, 0.9], squash: 0.5 }), { width: 0.24, gain: 1.35 })];

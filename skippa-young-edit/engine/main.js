@@ -28,6 +28,14 @@ function warpOf(cfg) {
     w = { tOf(rf) { if (rf <= A[0][0]) return A[0][1] + (rf - A[0][0]) * slope; if (rf >= L[0]) return L[1] + (rf - L[0]) * slope; let i = 1; while (A[i][0] < rf) i++; const a = A[i - 1], b = A[i]; return a[1] + ((b[1] - a[1]) * (rf - a[0])) / (b[0] - a[0] || 1e-9); },
       rfAt(t) { if (t <= A[0][1]) return A[0][0] + (t - A[0][1]) / slope; if (t >= L[1]) return L[0] + (t - L[1]) / slope; let i = 1; while (A[i][1] < t) i++; const a = A[i - 1], b = A[i]; return a[0] + ((b[0] - a[0]) * (t - a[1])) / (b[1] - a[1] || 1e-9); } };
   }
+  // cfg.smooth (seconds): round the corners of the piecewise map so speed changes ramp instead of snapping
+  if (cfg.smooth > 0 && A.length >= 2) { const L = A[A.length - 1]; const piece = w; const dt = 1 / 240, t0 = A[0][1] - 1, n = Math.ceil((L[1] + 4 - t0) / dt) + 1;
+    let cur = new Float64Array(n); for (let i = 0; i < n; i++) cur[i] = piece.rfAt(t0 + i * dt); const k = Math.max(1, Math.round(cfg.smooth / dt / 2));
+    for (let pass = 0; pass < 2; pass++) { const cs = new Float64Array(n + 1); for (let i = 0; i < n; i++) cs[i + 1] = cs[i] + cur[i]; const nx = new Float64Array(n); for (let i = 0; i < n; i++) { const r = Math.min(k, i, n - 1 - i); nx[i] = (cs[i + r + 1] - cs[i - r]) / (2 * r + 1); } cur = nx; }
+    const sm = cur;
+    w = { rfAt(t) { const x = (t - t0) / dt; if (x <= 0 || x >= n - 1) return piece.rfAt(t); const i = Math.floor(x); return sm[i] + (sm[i + 1] - sm[i]) * (x - i); },
+      tOf(rf) { if (rf <= sm[0] || rf >= sm[n - 1]) return piece.tOf(rf); let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (sm[m] <= rf) lo = m; else hi = m; } const d = sm[hi] - sm[lo]; return t0 + (lo + (d > 1e-12 ? (rf - sm[lo]) / d : 0)) * dt; } };
+  }
   warps.set(cfg, w); return w;
 }
 export const rfAt = (tSec, cfg) => warpOf(cfg).rfAt(tSec);
@@ -64,7 +72,7 @@ function sectionAt(rf) { for (const s of S.sections) if (rf >= s.def.range[0] &&
 /** Render output frame n to the canvas. Returns a JPEG data URL (or null with {noRead:true}). */
 export function renderFrame(n, opts = {}) {
   const { cfg, renderer, post, scene, camera } = S; const N = opts.samples || cfg.samples; const sh = opts.shutter ?? cfg.shutter;
-  const t0 = n / cfg.fps; const rf0 = rfAt(t0, cfg); const sec = sectionAt(rf0);
+  const t0 = n / cfg.fps; const rf0 = Math.max(0, rfAt(t0, cfg)); const sec = sectionAt(rf0);
   for (const s of S.sections) s.inst.group.visible = s === sec;
   post.begin(); let P = { ...POST_DEFAULTS };
   if (sec) {

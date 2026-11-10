@@ -1,14 +1,15 @@
 # "Young" — 3D typography edit
 
 A frame-for-frame recreation of a 3D-typography lyric-edit style, rebuilt as a small WebGL engine
-(three.js, rendered headless and encoded with ffmpeg), paced to **Skippa – "Young"** (116 BPM).
+(three.js, rendered headless and encoded with ffmpeg). It is paced on a **103 BPM** beat grid (the tempo of
+Skippa's "Money Walk" riddim) with every word held long enough to read: about 40 seconds.
 
 | File | What it is |
 |---|---|
 | `ANALYSIS.md` | Frame-by-frame breakdown of the reference: beats, shots, every asset and effect |
 | `PROMPT.md` | The long master prompt describing the whole edit |
 | `lyrics.txt` | The words on screen — edit this |
-| `song.timing.json` | Tempo, clip window and where each sung word lands (measured from the song's official preview) |
+| `song.timing.json` | The pacing: tempo, which beat every word lands on, and how long it holds (written by `tools/make_pacing.py`) |
 | `edit.config.json` | Size, frame rate, credit line, call-to-action, emblem text |
 | `engine/` | The renderer: lettering (`glyphs.js`), scene kit (`kit.js`), finishing stack (`post.js`), one module per scene in `engine/sections/` (A–K, eleven scenes) |
 | `engine/assets/` | Real photographs and scans, all public domain or CC0 (NASA Earth and Moon, studio lighting map, metal and wood grain) — see `CREDITS.md` there |
@@ -26,7 +27,7 @@ npm install
 node render.mjs
 ```
 
-Output: `out/edit.mp4`, 1920×1080, 30 fps, ~21.6 s. A fast preview:
+Output: `out/edit.mp4`, 1920×1080, 30 fps, ~40 s, no sound. A fast preview:
 
 ```bash
 node render.mjs --scale 0.5 --samples 3 --out out/preview.mp4
@@ -39,37 +40,38 @@ Needs Node 18+, ffmpeg, Python 3 with numpy and Pillow, and Playwright's Chromiu
 - **Words:** the file ships with original lines telling the song's story (young, alone at night, facing his
   demons, how he'll be remembered). The song's own lyrics are Skippa's; they are not included. To use them,
   paste the lines sung in the clip window into `lyrics.txt` and render again — see the notes in that file.
-- **Sound:** the render carries an original guide beat at the song's tempo so every hit is audible. The
-  recording itself is not included. Add it yourself:
+- **Sound:** the video is silent. The recording is not included; add it yourself:
 
 ```bash
 node render.mjs --audio /path/to/your-clip.mp3 --audio-start 0
 ```
 
-  The edit covers about 20 s of the song, starting **4.16 s into its official 30-second preview**. If your
-  file is the full track, pass that position as `--audio-start`. Posting on TikTok instead: upload the
-  video, add the official sound, and slide it so the first hit lands on the first word.
+  The first hit of the edit is 0.12 s in, and beats follow every 0.583 s (103 BPM). Posting on TikTok
+  instead: upload the video, add the official sound, and slide it so a strong beat lands on the first word.
+  `--guide` adds a plain synthesized beat on that grid, only useful for checking sync.
 
-## Timing to the song
+## Pacing
 
-`song.timing.json` was fitted to the song: 116 BPM, and each of the 26 word-slots enters on the onset of
-the word sung at that moment (49 sung words across the clip; none fall in the wordless interlude).
-To re-fit to a different clip or song:
-
-```bash
-python3 tools/analyze_audio.py clip.mp3
-```
+`tools/make_pacing.py` holds one row per word: the reference frame where it starts and the beat it lands on.
+Between two rows the edit does not run at constant speed — letters arrive and leave at close to their natural
+speed and the rest of the time goes to the hold, where the finished word sits still enough to read. The engine
+rounds every speed change into a ramp (`smooth` in the timing file).
 
 ```bash
-python3 tools/word_times.py clip.mp3 song.words.json
+python3 tools/make_pacing.py --bpm 103
 ```
+
+Change `--bpm` for another song, or edit the beat column to give a word more or less time. To see the flow
+without a full render:
 
 ```bash
-python3 tools/fit_slots.py --words song.words.json --bpm 116 --phase 0.135 --out song.timing.json
+node render.mjs --every 4 --scale 0.2 --samples 3 --stills scratch/watch
 ```
 
-`word_times.py` needs `pip install faster-whisper`; it stores only timestamps and letter counts, never text.
-Without a timing file the edit runs on a plain beat grid: `node render.mjs --no-timing --bpm 114`.
+An earlier fit that snaps each word to the sung-word onsets of "Young" (116 BPM, ~21 s, the reference's own
+speed) is kept as `song.timing.young116.json`; use it with `--timing song.timing.young116.json`.
+`tools/analyze_audio.py`, `tools/word_times.py` and `tools/fit_slots.py` produce that kind of fit from a
+clip; `word_times.py` stores only timestamps and letter counts, never text.
 
 ## Working on a scene
 
@@ -77,7 +79,8 @@ Without a timing file the edit runs on a plain beat grid: `node render.mjs --no-
 node render.mjs --only F --frames 160-240 --step 2 --scale 0.5 --samples 4 --sheet scratch/f.jpg
 ```
 
-`--frames` are reference-frame numbers (0–657). `engine/README.md` documents the scene API.
+`--frames` are reference-frame numbers (0–657); `--from` / `--to` / `--every` select output frames instead.
+`engine/README.md` documents the scene API.
 
 `--samples N` sets the sub-frames blended per frame (motion blur, depth of field, anti-aliasing): 8 is the
 default, 12 is smoother on fast spins. `--parts N` splits a render across N processes and joins the pieces;

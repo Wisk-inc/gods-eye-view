@@ -35,6 +35,7 @@ export default {
 
     // --- word s04 and its dressing
     const w4 = kit.word(words.s04 || 'NIGHTS', { size: 1.25, depth: 0.62, style: 'redSolid', seed: 4 }); group.add(w4.group);
+    const dN = w4.width / (1.294 * 0.6);   // camera distance at which the word spans 60 % of the frame width
     const halo4 = kit.plate(tex.glow, 10, 5.6, { color: '#ff0a05', additive: true, opacity: 0.4 }); halo4.position.z = -0.9; group.add(halo4);
     const arcs = [
       kit.ribbon(kit.arc(3.4, 200, 330, 24, { center: [-0.2, 0.3, -0.5], squash: 0.55 }), { width: 0.08 }),
@@ -53,11 +54,11 @@ export default {
       { rf: 33, p: [0, 0.2, 6.2], t: [0, 0.2, 0], roll: -2, e: 'io2' },
     ];
     const camB = [ // s04
-      { rf: 33, p: [0.3, -0.3, 6.6], t: [0.3, -0.25, 0], roll: -6 },
-      { rf: 37, p: [0.3, -0.3, 6.3], t: [0.3, -0.25, 0], roll: -4, e: 'out3' },
-      { rf: 41, p: [0.2, -0.25, 6.0], t: [0.2, -0.25, 0], roll: 4, e: 'lin' },
-      { rf: 44, p: [0.1, -0.2, 5.3], t: [0.1, -0.2, 0], roll: 26, e: 'in2' },
-      { rf: 48, p: [0.0, 0.0, 1.5], t: [0.0, 0.0, 0], roll: 118, e: 'in2' },
+      { rf: 33, p: [0, 0.05, dN * 1.12], t: [0, 0.05, 0], roll: -6 },
+      { rf: 37, p: [0, 0.05, dN], t: [0, 0.05, 0], roll: -4, e: 'out3' },
+      { rf: 41, p: [0, 0.03, dN * 0.95], t: [0, 0.03, 0], roll: 4, e: 'lin' },
+      { rf: 44.5, p: [0, 0, dN * 0.78], t: [0, 0, 0], roll: 30, e: 'in2' },
+      { rf: 48, p: [0.0, 0.0, 1.4], t: [0.0, 0.0, 0], roll: 100, e: 'in2' },
     ];
 
     return { group, update(rf) {
@@ -75,9 +76,9 @@ export default {
       // s04
       w4.group.visible = halo4.visible = !first; arcs.forEach((a) => (a.mesh.visible = !first)); beams.forEach((b) => (b.mesh.visible = !first));
       if (!first) {
-        const k = prog(rf, 32.6, 36.2, 'out5'); const x = lerp(-11, -0.55, k); w4.group.position.set(x, -0.45, 0); w4.group.scale.setScalar(lerp(1.7, 1, k));
-        w4.group.rotation.set(-0.3, lerp(-0.7, 0.34, k), lerp(-0.25, -0.05, k)); w4.reset(1); w4.gain(1.0 + 0.4 * pulse(rf, 36, 5));
-        halo4.position.set(x, -0.45, -0.9);
+        const k = prog(rf, 32.6, 36.2, 'out5'); const x = lerp(-6.5, 0, k); w4.group.position.set(x, 0, 0); w4.group.scale.setScalar(lerp(1.7, 1, k));
+        w4.group.rotation.set(-0.3, lerp(-0.7, 0.34, k), lerp(-0.25, -0.05, k)); w4.reset(1); w4.gain(1.05 + 0.4 * pulse(rf, 36, 5) + 0.35 * prog(rf, 43, 47));
+        halo4.position.set(x, 0, -0.9);
         arcs.forEach((a, i) => a.swoosh(rf, 34 + i * 0.8, 38 + i * 0.8, 41 + i * 0.5, 47));
         beams.forEach((b, i) => b.swoosh(rf, 35 + i * 0.6, 38.5 + i * 0.6, 60, 70));
       }

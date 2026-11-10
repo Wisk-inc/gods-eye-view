@@ -54,7 +54,7 @@ export default {
       { rf: 69.5, p: [0.05, 0.0, 4.3], t: [0.05, 0, 0], roll: -1.5, e: 'out4' },
       { rf: 78, p: [0.1, 0.0, 3.8], t: [0.1, 0, 0], roll: 2.5, e: 'lin' },
     ];
-    const IRIS = [[70.4, 0], [71, 0.03], [72, 0.08], [73, 0.17], [74, 0.3], [75, 0.55], [76, 0.9], [77, 1.3], [78, 1.4]];
+    const IRIS = [[73, 0], [73.6, 0.04], [74.3, 0.12], [75, 0.3], [75.8, 0.6], [76.5, 0.95], [77, 1.3], [78, 1.4]];   // starts after the word has been read
 
     return { group, update(rf) {
       const first = rf < 67; A.visible = first; B.visible = !first;
@@ -83,7 +83,7 @@ export default {
         zoom: 1 + 0.035 * pulse(rf, 50.9, 5) + 0.03 * pulse(rf, 58.8, 5), lens: 0.12 * punch + 0.06 * pulse(rf, 50.9, 5),
         rays: 0.35 * prog(rf, 70, 75), raysCenter: [0.5, 0.5],
         bars: track([[48, 0.05], [54, 0.074, 'out3'], [64, 0.074], [67, 0.02, 'in2'], [70, 0.035], [76, 0]], rf), barsAlpha: 0.93,
-        irisDisc: rf >= 70.4 ? track(IRIS, rf) : 0, irisRim: [1, 0.05, 0.08], irisBg: [1, 1, 1], flash: prog(rf, 76.6, 77, 'lin'),
+        irisDisc: rf >= 73 ? track(IRIS, rf) : 0, irisRim: [1, 0.05, 0.08], irisBg: [1, 1, 1], flash: prog(rf, 76.6, 77, 'lin'),
         saturation: 1.14, leak: first ? 0.22 : 0.3, leakColor: [1, 0.3, 0.16], leakPos: [0.05, 0.95], leakSize: 0.85, mark: 0.38 * (1 - prog(rf, 75, 77)),
       } };
     } };

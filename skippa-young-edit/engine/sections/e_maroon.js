@@ -56,10 +56,10 @@ export default {
       { rf: 118, p: [0.0, 0.35, 6.4], t: [0, 0.3, 0], roll: 2.5 },
       { rf: 126, p: [0.0, 0.3, 5.75], t: [0, 0.25, 0], roll: 0.5, e: 'out3' },
       { rf: 136, p: [0.1, 0.25, 5.35], t: [0.1, 0.2, 0], roll: -1.5, e: 'lin' },
-      { rf: 139, p: [-4.6, -3.3, 5.0], t: [-5.2, -3.8, 0], roll: 24, e: 'in3' },
+      { rf: 139, p: [0.2, -0.9, 6.9], t: [0.2, -1.05, 0], roll: 16, e: 'in2' },
     ];
     const cam2 = [
-      { rf: 139, p: [O2.x + 4.6, O2.y + 3.2, 5.6], t: [O2.x + 4.0, O2.y + 2.8, 0], roll: 22 },
+      { rf: 139, p: [O2.x + 0.9, O2.y + 0.5, 6.2], t: [O2.x + 0.8, O2.y + 0.4, 0], roll: 14 },
       { rf: 144.5, p: [O2.x + 0.3, O2.y + 0.1, 5.5], t: [O2.x + 0.3, O2.y + 0.05, 0], roll: 1.5, e: 'out4' },
       { rf: 153, p: [O2.x + 0.1, O2.y - 0.1, 5.0], t: [O2.x + 0.1, O2.y - 0.15, 0], roll: -2, e: 'lin' },
       { rf: 156, p: [O2.x - 0.3, O2.y - 0.4, 5.0], t: [O2.x - 0.4, O2.y - 0.5, 0], roll: -4, e: 'in2' },
@@ -71,11 +71,15 @@ export default {
     return { group, update(rf) {
       const first = rf < 139; S1.g.visible = first; S2.g.visible = !first;
       if (first) {
+        if (w8.group.parent !== S1.g) { S1.g.add(w8.group); w8.group.position.set(-0.1, 0.95, 0); w8.group.scale.setScalar(1); w8.opacity(1); }
         animSet(S1, rf, 118); const n = w8.n;
         for (let i = 0; i < n; i++) { const st = 121.6 + i * (7.2 / Math.max(1, n - 1)); const t = (rf - st) / 5.5; if (t <= 0) { w8.pose(i, { o: 0 }); continue; } const e = ease.outBackSoft(sat(t)), k = 1 - e, up = i % 2 ? -1 : 1; w8.pose(i, { y: k * up * 1.7, rz: k * up * 0.6, s: 1 + k * 0.35, o: sat(t * 4) }); }
         w8.group.rotation.set(-0.26, 0.32 - (rf - 122) * 0.004, -0.14); w8.gain(1.0 + 0.3 * pulse(rf, 129.8, 5)); w8.sweep(prog(rf, 128, 135), 0.6);
         strokes1[0].swoosh(rf, 126, 130, 131, 135); strokes1[1].swoosh(rf, 128, 132, 132.5, 136.5); strokes1[2].swoosh(rf, 124, 129, 130, 135);
       } else {
+        // the previous word lingers at the top, rolled and receding, while the next one arrives
+        if (w8.group.parent !== S2.g) S2.g.add(w8.group); w8.reset(1); const gk = prog(rf, 139, 151, 'out2');
+        w8.group.position.set(0.6 + 0.5 * gk, 2.35 + 0.5 * gk, -1.6 - 2.2 * gk); w8.group.scale.setScalar(1.1); w8.group.rotation.set(-0.3 - 0.5 * gk, 0.3, -0.12 - 0.2 * gk); w8.gain(lerp(0.75, 0.3, gk)); w8.opacity(1 - prog(rf, 144, 151)); w8.sweep(0, 0);
         animSet(S2, rf, 139);
         const k = prog(rf, 138.6, 145, 'out4'); w10.group.position.set(lerp(-8.5, 0, k), lerp(-1.4, 0.05, k), lerp(1.2, 0, k)); w10.group.scale.setScalar(lerp(2.5, 1, k));
         w10.group.rotation.set(-0.28, lerp(0.75, 0.3, k) - (rf - 145) * 0.003, lerp(0.42, 0.26, k));
@@ -91,7 +95,7 @@ export default {
         exposure: 1 + 0.25 * (1 - prog(rf, 118, 124)) + 0.14 * pulse(rf, 129.8, 4) + 0.3 * pulse(rf, 143, 3.5), chroma: 0.0014 + 0.004 * pulse(rf, 143, 4) + 0.004 * prog(rf, 156, 160),
         zoom: 1 + 0.03 * pulse(rf, 129.8, 5) + 0.035 * pulse(rf, 145.6, 5), lens: 0.07 * pulse(rf, 129.8, 6) + 0.1 * pulse(rf, 143, 5),
         bars: track([[118, 0], [124, 0], [128, 0.06, 'out3'], [156, 0.06], [160, 0.03]], rf), barsAlpha: 0.55,
-        leak: 0.2, leakColor: [1, 0.25, 0.32], leakPos: [0.98, 0.05], leakSize: 0.8, zoomBlur: 0.55 * pulse(rf, 138.6, 3.5, 2.6) + 0.5 * prog(rf, 157, 160, 'in2'), tint: [1.04, 0.97, 0.94],
+        leak: 0.2, leakColor: [1, 0.25, 0.32], leakPos: [0.98, 0.05], leakSize: 0.8, zoomBlur: 0.28 * pulse(rf, 138.8, 3.5, 2.6) + 0.5 * prog(rf, 157, 160, 'in2'), tint: [1.04, 0.97, 0.94],
       } };
     } };
   },

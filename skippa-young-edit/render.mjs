@@ -40,7 +40,7 @@ if (fs.existsSync(lyricsPath)) {
 }
 // optional song timing (tools/fit_slots.py): tempo, first beat, per-slot anchors, words per slot
 const timingPath = A.timing ? path.resolve(A.timing) : (base.timingFile ? path.resolve(ROOT, base.timingFile) : null);
-if (timingPath && fs.existsSync(timingPath) && !A['no-timing']) { const T = JSON.parse(fs.readFileSync(timingPath, 'utf8')); for (const k of ['bpm', 'offset', 'anchors', 'groups', 'audioStart']) if (T[k] !== undefined) base[k] = T[k]; }
+if (timingPath && fs.existsSync(timingPath) && !A['no-timing']) { const T = JSON.parse(fs.readFileSync(timingPath, 'utf8')); for (const k of ['bpm', 'offset', 'anchors', 'groups', 'audioStart', 'smooth']) if (T[k] !== undefined) base[k] = T[k]; }
 const scale = parseFloat(A.scale || 1);
 const cfg = { ...base, width: Math.round(((base.width || 1920) * scale) / 2) * 2, height: Math.round(((base.height || 1080) * scale) / 2) * 2 };
 if (A.samples) cfg.samples = parseInt(A.samples, 10);
@@ -85,6 +85,7 @@ if (A.frames) {
 } else { for (let n = 0; n < info.frames; n++) list.push({ rf: null, n }); }
 
 if (A.from || A.to) list = list.slice(parseInt(A.from || 0), A.to ? parseInt(A.to) : undefined);   // output-frame range [from, to)
+if (A.every) { const ev = parseInt(A.every); list = list.filter((_, i) => i % ev === 0); }   // every Nth output frame (preview strips)
 if (A.chunk) { const [ci, cn] = String(A.chunk).split('/').map(Number); list = list.slice(Math.floor((ci * list.length) / cn), Math.floor(((ci + 1) * list.length) / cn)); }
 const grab = async (n) => { const url = await page.evaluate(([i]) => window.EDIT.renderFrame(i), [n]); return Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'); };
 const t0 = Date.now();
@@ -121,7 +122,7 @@ if (A.stills || A.sheet) {
   }
   // ---- audio: user clip if given, else the bundled original guide beat
   let audio = A.audio ? path.resolve(A.audio) : null;
-  if (!audio && !A['no-audio']) {
+  if (!audio && A.guide && !A['no-audio']) {   // the synthesized guide beat is opt-in (--guide); default is a silent video
     const guide = path.join(path.dirname(out), 'guide_beat.wav');
     const r = spawnSync('python3', [path.join(ROOT, 'tools/guide_beat.py'), '--bpm', String(cfg.bpm), '--offset', String(cfg.offset), '--duration', String(info.duration), '--out', guide], { stdio: 'inherit' });
     if (r.status === 0) audio = guide;
