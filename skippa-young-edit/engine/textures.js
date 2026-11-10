@@ -127,6 +127,17 @@ function glint(size) {
   return c;
 }
 
+// film dust overlay tile: R = bright specks / hairs / blotches (added), G = dark specks (subtracted)
+function dustOverlay(size, seed = 23) {
+  const [c, g] = canvas(size, size); const R = rng(seed); g.fillStyle = '#000'; g.fillRect(0, 0, size, size); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 420; i++) { const x = R() * size, y = R() * size, r = 0.4 + Math.pow(R(), 3) * 2.6; g.fillStyle = `rgba(255,0,0,${0.25 + R() * 0.7})`; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  for (let i = 0; i < 20; i++) { let x = R() * size, y = R() * size, a = R() * TAU; g.strokeStyle = `rgba(255,0,0,${0.2 + R() * 0.35})`; g.lineWidth = 0.6 + R() * 0.9; g.beginPath(); g.moveTo(x, y); const n = 3 + Math.floor(R() * 7); for (let k = 0; k < n; k++) { a += R.range(-0.9, 0.9); x += Math.cos(a) * R.range(4, 16); y += Math.sin(a) * R.range(4, 16); g.lineTo(x, y); } g.stroke(); }
+  for (let i = 0; i < 14; i++) { const x = R() * size, y = R() * size, r = R.range(8, 34); const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,0,0,0.16)'); gr.addColorStop(1, 'rgba(255,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  for (let i = 0; i < 9; i++) { const x = R() * size; g.strokeStyle = `rgba(255,0,0,${0.12 + R() * 0.2})`; g.lineWidth = 0.7; g.beginPath(); g.moveTo(x, R() * size); g.lineTo(x + R.range(-3, 3), R() * size); g.stroke(); }
+  for (let i = 0; i < 150; i++) { const x = R() * size, y = R() * size, r = 0.5 + Math.pow(R(), 3) * 2.4; g.fillStyle = `rgba(0,255,0,${0.3 + R() * 0.6})`; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  return c;
+}
+
 // tiling value noise (for smoke / ink / grain lookups)
 function noiseTex(size, seed = 7) {
   const [c, g] = canvas(size, size); const R = rng(seed); const img = g.createImageData(size, size);
@@ -216,6 +227,7 @@ export async function makeTextures(cfg = {}) {
   // real-world assets (see engine/assets/CREDITS.md); every one has a fallback so the engine runs without them
   const [cw, cg] = canvas(4, 4); cg.fillStyle = '#fff'; cg.fillRect(0, 0, 4, 4); T.white = tex(cw, { repeat: true });
   const A = cfg.assetBase || 'assets/';
+  T.dustfx = tex(dustOverlay(1024), { repeat: true }); T.earthHi = await loadImage(A + 'earth_hi.jpg');
   const [earth, moon, env, grit, wood] = await Promise.all([loadImage(A + 'earth.jpg'), loadImage(A + 'moon.jpg', { repeat: true }), loadImage(A + 'env.jpg', { repeat: true }), loadImage(A + 'grit.jpg', { repeat: true }), loadImage(A + 'wood.jpg', { repeat: true })]);
   T.earth = earth; if (moon) T.moon = moon; T.env = env; T.grit = grit || T.white; T.wood = wood;
   T.make = { textPlate: (t, o) => tex(textPlate(t, o)), tex };

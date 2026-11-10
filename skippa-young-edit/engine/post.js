@@ -23,6 +23,7 @@ export const POST_DEFAULTS = {
   shake: [0, 0], zoom: 1, rotate: 0,
   leak: 0, leakColor: [1, 0.35, 0.2], leakPos: [0.1, 0.9], leakSize: 0.9,
   lens: 0, rays: 0, raysCenter: [0.5, 0.5],
+  dust: 0.36,
   sharpen: 0.3,
   mark: 0.38,
 };
@@ -57,6 +58,7 @@ uniform vec2 uShake; uniform float uZoom; uniform float uRotate;
 uniform float uMark; uniform vec4 uMarkRect;
 uniform float uLeak; uniform vec3 uLeakColor; uniform vec2 uLeakPos; uniform float uLeakSize; uniform float uSharpen;
 uniform float uLens; uniform float uRays; uniform vec2 uRaysCenter;
+uniform sampler2D tDust; uniform float uDust;
 varying vec2 vUv;
 
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -121,6 +123,8 @@ void main(){
   if (uLeak > 0.001) { float ld = distance(vUv * vec2(aspect, 1.0), uLeakPos * vec2(aspect, 1.0)); float lk = smoothstep(uLeakSize, 0.0, ld); col += uLeakColor * uLeak * lk * lk * (0.75 + 0.5 * fbm(vUv * 0.35 + vec2(uTime * 0.05, 0.0))); }
   // ---- flash / fade
   col = mix(col, uFlashColor, uFlash); col *= (1.0 - uFade);
+  // ---- film dust: specks, hairs and blotches that jump to a new position every few frames
+  if (uDust > 0.001) { float st = floor(uTime * 12.0); vec2 dof = vec2(hash(vec2(st, 1.0)), hash(vec2(st, 2.0))); vec4 dd = texture2D(tDust, vUv * vec2(aspect, 1.0) * 0.82 + dof); vec4 d2 = texture2D(tDust, vUv * vec2(aspect, 1.0) * 0.45 - dof.yx); col += (dd.r * 0.6 + d2.r * 0.35) * uDust; col *= 1.0 - (dd.g * 0.7 + d2.g * 0.4) * uDust; }
   // ---- letterbox bars (drawn over flashes, like the reference)
   if (uBars > 0.0001) { float bar = clamp(step(vUv.y, uBars) + step(1.0 - uBars, vUv.y), 0.0, 1.0); col = mix(col, vec3(0.0), bar * uBarsAlpha); }
   // ---- watermark
@@ -150,7 +154,7 @@ export class Post {
       uExposure: U(1), uContrast: U(1), uSaturation: U(1), uDesat: U(0), uInvert: U(0), uTint: U(v3()), uBloom: U(1), uBloomTint: U(v3()), uVignette: U(0.5), uChroma: U(0), uZoomBlur: U(0), uZoomCenter: U(v2()),
       uWarp: U(0), uWarpScale: U(2), uFlash: U(0), uFade: U(0), uFlashColor: U(v3()), uIrisDisc: U(0), uIrisHole: U(9), uIrisRimW: U(0.16), uIrisRim: U(v3()), uIrisBg: U(v3()), uIrisCenter: U(v2()),
       uBars: U(0), uBarsAlpha: U(0.9), uFlat: U(0), uBand: U(0), uFlatColor: U(v3()), uBandColor: U(v3()), uMirror: U(0), uSlices: U(0), uGlitch: U(0), uEdge: U(0), uRgbSplit: U(0), uSmoke: U(0), uSmokeColor: U(v3()),
-      uGrain: U(0.03), uScratches: U(0), uShake: U(v2()), uZoom: U(1), uRotate: U(0), uLeak: U(0), uLeakColor: U(v3()), uLeakPos: U(v2()), uLeakSize: U(0.9), uSharpen: U(0.3), uLens: U(0), uRays: U(0), uRaysCenter: U(v2()), uMark: U(0.4), uMarkRect: U(new THREE.Vector4(0.5, 0.03, 0.07, 0.02)) };
+      uGrain: U(0.03), uScratches: U(0), uShake: U(v2()), uZoom: U(1), uRotate: U(0), uLeak: U(0), uLeakColor: U(v3()), uLeakPos: U(v2()), uLeakSize: U(0.9), uSharpen: U(0.3), uLens: U(0), uRays: U(0), uRaysCenter: U(v2()), tDust: U(tex.dustfx), uDust: U(0.5), uMark: U(0.4), uMarkRect: U(new THREE.Vector4(0.5, 0.03, 0.07, 0.02)) };
     this.mFinal = sm(FS_FINAL, this.uF);
     const markH = 0.021; this.uF.uMarkRect.value.set(0.5, 0.032, (markH * tex.markAspect * h) / w, markH);
   }
@@ -178,7 +182,7 @@ export class Post {
     S('uIrisDisc', P.irisDisc); S('uIrisHole', P.irisHole); S('uIrisRimW', P.irisRimW); V('uIrisRim', P.irisRim); V('uIrisBg', P.irisBg); V('uIrisCenter', P.irisCenter);
     S('uBars', P.bars); S('uBarsAlpha', P.barsAlpha); S('uFlat', P.flat); S('uBand', P.band); V('uFlatColor', P.flatColor); V('uBandColor', P.bandColor);
     S('uMirror', P.mirror); S('uSlices', P.slices); S('uGlitch', P.glitch); S('uEdge', P.edge); S('uRgbSplit', P.rgbSplit); S('uSmoke', P.smoke); V('uSmokeColor', P.smokeColor);
-    S('uLens', P.lens); S('uRays', P.rays); V('uRaysCenter', P.raysCenter);
+    S('uDust', P.dust); S('uLens', P.lens); S('uRays', P.rays); V('uRaysCenter', P.raysCenter);
     S('uLeak', P.leak); V('uLeakColor', P.leakColor); V('uLeakPos', P.leakPos); S('uLeakSize', P.leakSize); S('uSharpen', P.sharpen);
     S('uGrain', P.grain); S('uScratches', P.scratches); V('uShake', P.shake); S('uZoom', P.zoom); S('uRotate', P.rotate); S('uMark', P.mark);
     this.pass(this.mFinal, null);
