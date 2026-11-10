@@ -227,9 +227,16 @@ export async function makeTextures(cfg = {}) {
   // real-world assets (see engine/assets/CREDITS.md); every one has a fallback so the engine runs without them
   const [cw, cg] = canvas(4, 4); cg.fillStyle = '#fff'; cg.fillRect(0, 0, 4, 4); T.white = tex(cw, { repeat: true });
   const A = cfg.assetBase || 'assets/';
+  T.faceTex = await loadImage('local/texture.jpg', { repeat: true });
   T.dustfx = tex(dustOverlay(1024), { repeat: true }); T.earthHi = await loadImage(A + 'earth_hi.jpg');
   const [earth, moon, env, grit, wood] = await Promise.all([loadImage(A + 'earth.jpg'), loadImage(A + 'moon.jpg', { repeat: true }), loadImage(A + 'env.jpg', { repeat: true }), loadImage(A + 'grit.jpg', { repeat: true }), loadImage(A + 'wood.jpg', { repeat: true })]);
   T.earth = earth; if (moon) T.moon = moon; T.env = env; T.grit = grit || T.white; T.wood = wood;
+  // optional local pack (tools/import_pack.py): overlay clips as frame atlases + sprite images. Never committed.
+  T.ovl = {}; T.pack = {};
+  try { const man = await (await fetch('local/manifest.json')).json();
+    await Promise.all(Object.entries(man.clips || {}).map(async ([name, c]) => { const t = await loadImage('local/' + c.file); if (t) { t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.needsUpdate = true; T.ovl[name] = { tex: t, ...c }; } }));
+    await Promise.all(Object.entries(man.images || {}).map(async ([name, c]) => { const t = await loadImage('local/' + c.file, { repeat: true }); if (t) { t.userData = { aspect: c.w / c.h }; T.pack[name] = t; } }));
+  } catch (e) { /* no local pack: everything falls back to generated assets */ }
   T.make = { textPlate: (t, o) => tex(textPlate(t, o)), tex };
   return T;
 }

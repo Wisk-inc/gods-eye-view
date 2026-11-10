@@ -24,6 +24,8 @@ export const POST_DEFAULTS = {
   leak: 0, leakColor: [1, 0.35, 0.2], leakPos: [0.1, 0.9], leakSize: 0.9,
   lens: 0, rays: 0, raysCenter: [0.5, 0.5],
   dust: 0.36,
+  ovlA: null, ovlB: null,   // { clip, t (seconds) | f (frame), amt, tint[3], loop, scale, ox, oy, flipX, mono }
+  grunge: 0.16,
   sharpen: 0.3,
   mark: 0.38,
 };
@@ -59,12 +61,23 @@ uniform float uMark; uniform vec4 uMarkRect;
 uniform float uLeak; uniform vec3 uLeakColor; uniform vec2 uLeakPos; uniform float uLeakSize; uniform float uSharpen;
 uniform float uLens; uniform float uRays; uniform vec2 uRaysCenter;
 uniform sampler2D tDust; uniform float uDust;
+uniform sampler2D tOvlA; uniform sampler2D tOvlB; uniform vec4 uOvlA; uniform vec4 uOvlB; uniform vec4 uOvlAX; uniform vec4 uOvlBX; uniform vec3 uOvlATint; uniform vec3 uOvlBTint;
+uniform sampler2D tGrunge; uniform float uGrunge;
 varying vec2 vUv;
 
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float nz(vec2 p){ return texture2D(tNoise, p).r; }
 float fbm(vec2 p){ return nz(p)*0.62 + nz(p*2.03 + 3.1)*0.26 + nz(p*4.1 + 7.7)*0.12; }
 vec2 mir(vec2 uv){ vec2 m = mod(uv, 2.0); return mix(m, 2.0 - m, step(1.0, m)); }
+// one frame of an overlay clip from its atlas: p = (frame, cols, rows, amount), x = (scale, offset x, offset y, flip x)
+vec3 clipAt(sampler2D t, vec4 p, vec4 x, vec2 uv){
+  vec2 u = (uv - 0.5) / x.x + 0.5 - x.yz; if (mod(x.w, 2.0) > 0.5) u.x = 1.0 - u.x;
+  if (u.x < 0.0 || u.x > 1.0 || u.y < 0.0 || u.y > 1.0) return vec3(0.0);
+  float ed = smoothstep(0.0, 0.09, u.x) * smoothstep(1.0, 0.91, u.x) * smoothstep(0.0, 0.09, u.y) * smoothstep(1.0, 0.91, u.y);
+  u = clamp(u, 0.004, 0.996); float f0 = floor(p.x); float f1 = f0 + 1.0; vec2 cell = 1.0 / vec2(p.y, p.z);
+  vec2 c0 = vec2(mod(f0, p.y), floor(f0 / p.y)); vec2 c1 = vec2(mod(f1, p.y), floor(f1 / p.y));
+  vec2 a0 = vec2((c0.x + u.x) * cell.x, 1.0 - (c0.y + 1.0 - u.y) * cell.y); vec2 a1 = vec2((c1.x + u.x) * cell.x, 1.0 - (c1.y + 1.0 - u.y) * cell.y);
+  vec3 o = mix(texture2D(t, a0).rgb, texture2D(t, a1).rgb, p.x - f0); if (x.w > 1.5) o = vec3(max(o.r, max(o.g, o.b))); return max(o - 0.035, 0.0) * 1.04 * ed; }
 
 void main(){
   float aspect = uRes.x / uRes.y;
@@ -99,6 +112,9 @@ void main(){
   if (uRays > 0.001) { vec3 ra = vec3(0.0); for (int i = 0; i < 14; i++) { float f = (float(i) + hash(gl_FragCoord.xy + float(i)*3.1)) / 14.0; ra += texture2D(tB1, mir(buv + (uRaysCenter - buv) * f * 0.6)).rgb * (1.0 - f); } col += ra / 5.0 * uRays * uBloomTint; }
   // ---- edge-detect (contour glitch frame)
   if (uEdge > 0.001) { vec2 px = 1.5 / uRes; float l0 = dot(texture2D(tScene, buv).rgb, vec3(0.333)); float lx = dot(texture2D(tScene, buv + vec2(px.x, 0.0)).rgb, vec3(0.333)); float ly = dot(texture2D(tScene, buv + vec2(0.0, px.y)).rgb, vec3(0.333)); float e = clamp(length(vec2(lx - l0, ly - l0)) * 10.0, 0.0, 1.0); col = mix(col, vec3(e) * vec3(0.8, 1.0, 0.86), uEdge); }
+  // ---- overlay clips (fire, smoke, shards, tunnels...) screened over the picture
+  if (uOvlA.w > 0.001) { vec3 o = clamp(clipAt(tOvlA, uOvlA, uOvlAX, vUv) * uOvlATint * uOvlA.w, 0.0, 1.0); col = 1.0 - (1.0 - min(col, vec3(1.0))) * (1.0 - o); }
+  if (uOvlB.w > 0.001) { vec3 o = clamp(clipAt(tOvlB, uOvlB, uOvlBX, vUv) * uOvlBTint * uOvlB.w, 0.0, 1.0); col = 1.0 - (1.0 - min(col, vec3(1.0))) * (1.0 - o); }
   // ---- grade
   col *= uExposure;
   float l = dot(col, vec3(0.299, 0.587, 0.114));
@@ -123,8 +139,10 @@ void main(){
   if (uLeak > 0.001) { float ld = distance(vUv * vec2(aspect, 1.0), uLeakPos * vec2(aspect, 1.0)); float lk = smoothstep(uLeakSize, 0.0, ld); col += uLeakColor * uLeak * lk * lk * (0.75 + 0.5 * fbm(vUv * 0.35 + vec2(uTime * 0.05, 0.0))); }
   // ---- flash / fade
   col = mix(col, uFlashColor, uFlash); col *= (1.0 - uFade);
+  // ---- grunge: a worn texture breaking up flat areas
+  if (uGrunge > 0.001) { float gg = dot(texture2D(tGrunge, vUv * vec2(1.0, 0.62) + vec2(0.0, 0.19)).rgb, vec3(0.333)); col *= mix(1.0, 0.7 + 1.1 * gg, uGrunge); }
   // ---- film dust: specks, hairs and blotches that jump to a new position every few frames
-  if (uDust > 0.001) { float st = floor(uTime * 12.0); vec2 dof = vec2(hash(vec2(st, 1.0)), hash(vec2(st, 2.0))); vec4 dd = texture2D(tDust, vUv * vec2(aspect, 1.0) * 0.82 + dof); vec4 d2 = texture2D(tDust, vUv * vec2(aspect, 1.0) * 0.45 - dof.yx); col += (dd.r * 0.6 + d2.r * 0.35) * uDust; col *= 1.0 - (dd.g * 0.7 + d2.g * 0.4) * uDust; }
+  if (uDust > 0.001) { float st = floor(uTime * 12.0); vec2 dof = vec2(hash(vec2(st, 1.0)), hash(vec2(st, 2.0))); vec4 dd = texture2D(tDust, vUv * vec2(aspect, 1.0) * 0.82 + dof); vec4 d2 = texture2D(tDust, vUv * vec2(aspect, 1.0) * 0.45 - dof.yx); col += (dd.r * 0.6 + d2.r * 0.35) * uDust; col *= 1.0 - (dd.g * 0.26 + d2.g * 0.16) * uDust; }
   // ---- letterbox bars (drawn over flashes, like the reference)
   if (uBars > 0.0001) { float bar = clamp(step(vUv.y, uBars) + step(1.0 - uBars, vUv.y), 0.0, 1.0); col = mix(col, vec3(0.0), bar * uBarsAlpha); }
   // ---- watermark
@@ -138,7 +156,7 @@ void main(){
 
 export class Post {
   constructor(renderer, w, h, tex) {
-    this.r = renderer; this.w = w; this.h = h;
+    this.r = renderer; this.w = w; this.h = h; this.tex = tex;
     const mk = (W, H, depth = false) => new THREE.WebGLRenderTarget(Math.max(2, W | 0), Math.max(2, H | 0), { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: depth, stencilBuffer: false, wrapS: THREE.ClampToEdgeWrapping, wrapT: THREE.ClampToEdgeWrapping });
     this.sceneRT = mk(w, h, true); this.accRT = mk(w, h);
     this.levels = [2, 4, 8, 16].map((d) => ({ a: mk(w / d, h / d), b: mk(w / d, h / d) }));
@@ -154,7 +172,7 @@ export class Post {
       uExposure: U(1), uContrast: U(1), uSaturation: U(1), uDesat: U(0), uInvert: U(0), uTint: U(v3()), uBloom: U(1), uBloomTint: U(v3()), uVignette: U(0.5), uChroma: U(0), uZoomBlur: U(0), uZoomCenter: U(v2()),
       uWarp: U(0), uWarpScale: U(2), uFlash: U(0), uFade: U(0), uFlashColor: U(v3()), uIrisDisc: U(0), uIrisHole: U(9), uIrisRimW: U(0.16), uIrisRim: U(v3()), uIrisBg: U(v3()), uIrisCenter: U(v2()),
       uBars: U(0), uBarsAlpha: U(0.9), uFlat: U(0), uBand: U(0), uFlatColor: U(v3()), uBandColor: U(v3()), uMirror: U(0), uSlices: U(0), uGlitch: U(0), uEdge: U(0), uRgbSplit: U(0), uSmoke: U(0), uSmokeColor: U(v3()),
-      uGrain: U(0.03), uScratches: U(0), uShake: U(v2()), uZoom: U(1), uRotate: U(0), uLeak: U(0), uLeakColor: U(v3()), uLeakPos: U(v2()), uLeakSize: U(0.9), uSharpen: U(0.3), uLens: U(0), uRays: U(0), uRaysCenter: U(v2()), tDust: U(tex.dustfx), uDust: U(0.5), uMark: U(0.4), uMarkRect: U(new THREE.Vector4(0.5, 0.03, 0.07, 0.02)) };
+      uGrain: U(0.03), uScratches: U(0), uShake: U(v2()), uZoom: U(1), uRotate: U(0), uLeak: U(0), uLeakColor: U(v3()), uLeakPos: U(v2()), uLeakSize: U(0.9), uSharpen: U(0.3), uLens: U(0), uRays: U(0), uRaysCenter: U(v2()), tDust: U(tex.dustfx), uDust: U(0.5), tOvlA: U(tex.white), tOvlB: U(tex.white), uOvlA: U(new THREE.Vector4(0, 8, 8, 0)), uOvlB: U(new THREE.Vector4(0, 8, 8, 0)), uOvlAX: U(new THREE.Vector4(1, 0, 0, 0)), uOvlBX: U(new THREE.Vector4(1, 0, 0, 0)), uOvlATint: U(v3()), uOvlBTint: U(v3()), tGrunge: U((tex.pack && tex.pack.grunge5) || tex.white), uGrunge: U(0), uMark: U(0.4), uMarkRect: U(new THREE.Vector4(0.5, 0.03, 0.07, 0.02)) };
     this.mFinal = sm(FS_FINAL, this.uF);
     const markH = 0.021; this.uF.uMarkRect.value.set(0.5, 0.032, (markH * tex.markAspect * h) / w, markH);
   }
@@ -182,7 +200,11 @@ export class Post {
     S('uIrisDisc', P.irisDisc); S('uIrisHole', P.irisHole); S('uIrisRimW', P.irisRimW); V('uIrisRim', P.irisRim); V('uIrisBg', P.irisBg); V('uIrisCenter', P.irisCenter);
     S('uBars', P.bars); S('uBarsAlpha', P.barsAlpha); S('uFlat', P.flat); S('uBand', P.band); V('uFlatColor', P.flatColor); V('uBandColor', P.bandColor);
     S('uMirror', P.mirror); S('uSlices', P.slices); S('uGlitch', P.glitch); S('uEdge', P.edge); S('uRgbSplit', P.rgbSplit); S('uSmoke', P.smoke); V('uSmokeColor', P.smokeColor);
-    S('uDust', P.dust); S('uLens', P.lens); S('uRays', P.rays); V('uRaysCenter', P.raysCenter);
+    S('uDust', P.dust); S('uGrunge', this.tex.pack && this.tex.pack.grunge5 ? P.grunge : 0);
+    for (const slot of ['A', 'B']) { const o = P['ovl' + slot]; const T = o && this.tex.ovl && this.tex.ovl[o.clip]; const U4 = u['uOvl' + slot].value;
+      if (!T || !(o.amt > 0)) { U4.set(0, 8, 8, 0); continue; }
+      let f = o.f !== undefined ? o.f : (o.t / T.duration) * T.frames; if (o.loop) f = ((f % (T.frames - 1)) + (T.frames - 1)) % (T.frames - 1); f = Math.min(T.frames - 1.001, Math.max(0, f));
+      u['tOvl' + slot].value = T.tex; U4.set(f, T.cols, T.rows, o.amt); u['uOvl' + slot + 'X'].value.set(o.scale || 1, o.ox || 0, o.oy || 0, (o.flipX ? 1 : 0) + (o.mono ? 2 : 0)); u['uOvl' + slot + 'Tint'].value.fromArray(o.tint || [1, 1, 1]); } S('uLens', P.lens); S('uRays', P.rays); V('uRaysCenter', P.raysCenter);
     S('uLeak', P.leak); V('uLeakColor', P.leakColor); V('uLeakPos', P.leakPos); S('uLeakSize', P.leakSize); S('uSharpen', P.sharpen);
     S('uGrain', P.grain); S('uScratches', P.scratches); V('uShake', P.shake); S('uZoom', P.zoom); S('uRotate', P.rotate); S('uMark', P.mark);
     this.pass(this.mFinal, null);

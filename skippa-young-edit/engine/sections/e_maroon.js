@@ -14,11 +14,11 @@ export default {
 
     const makeSet = (seed, cards, withPanels) => {
       const g = new THREE.Group(); const R = rng(seed);
-      const bg = kit.bg('grad', { a: '#3a0a1c', b: '#0b0207', vig: 0.9, scale: 1.2, w: 120, h: 70 }); bg.position.z = -16; g.add(bg);
+      const bg = kit.bg('grad', { a: '#44101c', b: '#0b0207', vig: 0.9, scale: 1.2, w: 120, h: 70 }); bg.position.z = -16; g.add(bg);
       if (withPanels) [
-        { pts: [[-2.2, -7], [-0.4, 0.2], [4.6, -1.8], [5.2, -7]], c: '#b0205c', z: -3.2 }, { pts: [[-9, -7], [-6.2, -1.2], [-2.6, -7]], c: '#7c1244', z: -3.6 },
-        { pts: [[4.9, -7], [5.0, -1.9], [11, 1.6], [11, -7]], c: '#d83274', z: -3.9 }, { pts: [[-10, 7], [-9.5, 2.6], [-3.4, 4.2], [-2.8, 7]], c: '#5e0c36', z: -4.4 },
-        { pts: [[2.4, 7], [3.6, 3.3], [10, 2.4], [10, 7]], c: '#8a1650', z: -4.8 },
+        { pts: [[-2.2, -7], [-0.4, 0.2], [4.6, -1.8], [5.2, -7]], c: '#a81c3c', z: -3.2 }, { pts: [[-9, -7], [-6.2, -1.2], [-2.6, -7]], c: '#74102c', z: -3.6 },
+        { pts: [[4.9, -7], [5.0, -1.9], [11, 1.6], [11, -7]], c: '#c82c4c', z: -3.9 }, { pts: [[-10, 7], [-9.5, 2.6], [-3.4, 4.2], [-2.8, 7]], c: '#560c22', z: -4.4 },
+        { pts: [[2.4, 7], [3.6, 3.3], [10, 2.4], [10, 7]], c: '#801434', z: -4.8 },
       ].forEach((f) => { const m = kit.poly(f.pts, { color: f.c }); m.position.z = f.z; g.add(m); });
       const cs = cards.map((c) => { const q = kit.quad({ ...CARD, w: c[3], h: c[4] }); q.position.set(c[0], c[1], c[2]); q.rotation.set(c[5], c[6], c[7]); q.userData = { p: [c[0], c[1], c[2]], r: [c[5], c[6], c[7]], ph: R() * 6 }; g.add(q); return q; });
       const rings = kit.bubbles({ count: 30, box: [12, 7, 4], center: [0, 0, 0.2], size: [0.16, 0.85], seed: seed + 1, kinds: ['ring', 'ringBold', 'ringBold', 'ring'], avoid: 1.2, gain: 1.25 }); g.add(rings);
@@ -28,8 +28,8 @@ export default {
       return { g, cs, rings, ringsFar, dust };
     };
     // x, y, z, w, h, rx, ry, rz
-    const S1 = makeSet(81, [[3.7, 1.75, -0.9, 2.8, 1.8, 0.2, -0.5, -0.16], [-3.9, -2.5, 0.5, 2.6, 1.6, -0.25, 0.45, 0.1], [-4.6, 2.5, -2.2, 1.3, 1.3, 0.3, 0.4, 0.5], [1.4, -3.0, -1.6, 1.5, 1.2, -0.3, -0.2, -0.3], [6.2, -2.0, -3.0, 1.2, 1.2, 0.2, 0.6, 0.35]], true);
-    const S2 = makeSet(91, [[2.9, 1.65, -0.7, 2.3, 1.75, 0.25, -0.45, 0.5], [-2.3, 0.1, -0.5, 2.1, 1.5, -0.15, 0.4, 0.42], [4.4, -1.9, 0.2, 1.7, 1.9, 0.2, -0.35, -0.12], [-0.6, -2.9, -1.3, 1.2, 1.2, -0.3, 0.2, 0.1], [-5.0, 2.6, -2.4, 1.3, 1.0, 0.3, 0.5, -0.4], [6.4, 2.9, -3.2, 1.1, 1.1, -0.2, -0.5, 0.25]], false);
+    const S1 = makeSet(81, [[3.7, 1.75, -0.9, 2.8, 1.8, 0.2, -0.5, -0.16], [-3.9, -2.5, 0.5, 2.6, 1.6, -0.25, 0.45, 0.1], [-4.6, 2.5, -2.2, 1.3, 1.3, 0.3, 0.4, 0.5], [1.4, -3.0, -1.6, 1.5, 1.2, -0.3, -0.2, -0.3], [6.2, -2.0, -3.0, 1.2, 1.2, 0.2, 0.6, 0.35], [-6.6, 0.4, -1.8, 1.6, 1.3, 0.2, 0.5, -0.3], [5.6, 3.4, -2.6, 1.4, 1.4, -0.3, -0.4, 0.2], [-1.6, -3.4, -0.6, 1.9, 1.3, 0.25, 0.3, 0.2], [-8.4, -3.0, -3.4, 1.5, 1.5, 0.2, 0.3, 0.4]], true);
+    const S2 = makeSet(91, [[2.9, 1.65, -0.7, 2.3, 1.75, 0.25, -0.45, 0.5], [-2.3, 0.1, -0.5, 2.1, 1.5, -0.15, 0.4, 0.42], [4.4, -1.9, 0.2, 1.7, 1.9, 0.2, -0.35, -0.12], [-0.6, -2.9, -1.3, 1.2, 1.2, -0.3, 0.2, 0.1], [-5.0, 2.6, -2.4, 1.3, 1.0, 0.3, 0.5, -0.4], [6.4, 2.9, -3.2, 1.1, 1.1, -0.2, -0.5, 0.25], [-5.4, -0.9, -1.2, 1.8, 1.4, 0.2, 0.5, 0.3], [0.9, 3.5, -1.8, 1.5, 1.2, -0.25, -0.3, -0.2], [6.9, 0.3, -1.4, 1.5, 1.6, 0.2, -0.5, 0.3], [7.6, 5.0, -2.6, 1.6, 1.3, 0.2, 0.4, 0.3]], false);
     S2.g.position.set(-40, -24, 0); group.add(S1.g, S2.g);
 
     const w8 = kit.word(words.s08 || 'I FOUGHT', { size: 1, depth: 0.55, style: 'crimson', seed: 8 }); w8.group.position.set(-0.1, 0.95, 0); S1.g.add(w8.group);
@@ -39,7 +39,7 @@ export default {
       kit.ribbon(kit.arc(4.4, 205, 260, 18, { center: [0.2, 1.2, -0.6], squash: 0.7 }), { width: 0.07, gain: 1.3 }),
     ]; strokes1.forEach((r) => S1.g.add(r.mesh));
 
-    const w10 = kit.word(words.s10 || 'WITH', { size: 1.08, depth: 0.6, style: 'pinkWhite', seed: 10 }); S2.g.add(w10.group);
+    const w10 = kit.word(words.s10 || 'WITH', { size: 1.08, depth: 0.6, style: { top: '#ff9690', bot: '#cc1e28', side: '#8e0c14', sideDark: '#2a0206', rim: '#ffffff', gain: 1.0, chrome: 0.1, rimAmt: 0.95 }, seed: 10 }); S2.g.add(w10.group);
     const flashGlow = kit.plate(tex.glow, 10, 5.5, { color: '#ffd0dc', additive: true, opacity: 0 }); flashGlow.position.z = 0.4; S2.g.add(flashGlow);
     const strokes2 = [
       kit.ribbon([[3.0, 3.6, 0.7], [3.9, 1.6, 0.7], [5.2, -0.2, 0.7], [6.6, -1.4, 0.7]], { width: 0.36, taper: 0.45, gain: 1.35 }),
@@ -55,15 +55,15 @@ export default {
     const cam1 = [
       { rf: 118, p: [0.0, 0.35, 6.4], t: [0, 0.3, 0], roll: 2.5 },
       { rf: 126, p: [0.0, 0.3, 5.75], t: [0, 0.25, 0], roll: 0.5, e: 'out3' },
-      { rf: 134, p: [0.1, 0.25, 5.4], t: [0.1, 0.2, 0], roll: -1.5, e: 'lin' },
-      { rf: 139, p: [-9.5, -6.8, 5.0], t: [-10.5, -7.6, 0], roll: 34, e: 'in3' },
+      { rf: 136, p: [0.1, 0.25, 5.35], t: [0.1, 0.2, 0], roll: -1.5, e: 'lin' },
+      { rf: 139, p: [-4.6, -3.3, 5.0], t: [-5.2, -3.8, 0], roll: 24, e: 'in3' },
     ];
     const cam2 = [
-      { rf: 139, p: [O2.x + 8.5, O2.y + 6.0, 5.6], t: [O2.x + 7.5, O2.y + 5.4, 0], roll: 30 },
+      { rf: 139, p: [O2.x + 4.6, O2.y + 3.2, 5.6], t: [O2.x + 4.0, O2.y + 2.8, 0], roll: 22 },
       { rf: 144.5, p: [O2.x + 0.3, O2.y + 0.1, 5.5], t: [O2.x + 0.3, O2.y + 0.05, 0], roll: 1.5, e: 'out4' },
       { rf: 153, p: [O2.x + 0.1, O2.y - 0.1, 5.0], t: [O2.x + 0.1, O2.y - 0.15, 0], roll: -2, e: 'lin' },
       { rf: 156, p: [O2.x - 0.3, O2.y - 0.4, 5.0], t: [O2.x - 0.4, O2.y - 0.5, 0], roll: -4, e: 'in2' },
-      { rf: 160, p: [O2.x - 9.5, O2.y - 6.6, 5.4], t: [O2.x - 10.5, O2.y - 7.4, 0], roll: -32, e: 'in3' },
+      { rf: 160, p: [O2.x - 4.5, O2.y - 3.1, 4.2], t: [O2.x - 4.0, O2.y - 2.7, 0], roll: -24, e: 'in3' },
     ];
     const DISC = [[118, 1.0], [119, 0.85], [120, 0.62], [121, 0.45], [122, 0.3], [123, 0.17], [124, 0.07], [125, 0]];
     const animSet = (S, rf, t0) => { S.cs.forEach((q, i) => { const u = q.userData; q.rotation.set(u.r[0] + Math.sin(rf * 0.05 + u.ph) * 0.08, u.r[1] + (rf - t0) * 0.006 * (i % 2 ? 1 : -1), u.r[2] + Math.sin(rf * 0.04 + u.ph * 2) * 0.05); q.position.set(u.p[0], u.p[1] + Math.sin(rf * 0.06 + u.ph) * 0.08, u.p[2]); }); S.rings.drift(rf - t0, 0.008, 0.06); S.ringsFar.drift(rf - t0, 0.005, 0.08); S.dust.drift(rf - t0, [0.004, 0.01, 0.01], 0.07); };
@@ -80,7 +80,7 @@ export default {
         const k = prog(rf, 138.6, 145, 'out4'); w10.group.position.set(lerp(-8.5, 0, k), lerp(-1.4, 0.05, k), lerp(1.2, 0, k)); w10.group.scale.setScalar(lerp(2.5, 1, k));
         w10.group.rotation.set(-0.28, lerp(0.75, 0.3, k) - (rf - 145) * 0.003, lerp(0.42, 0.26, k));
         w10.intro(rf, { start: 138.8, stagger: 1.6, dur: 5.5, type: 'drop', amp: 0.7 });
-        const fl = pulse(rf, 143, 3.5, 1.2); w10.gain(1.0 + 1.4 * fl + 0.25 * pulse(rf, 145.6, 5)); flashGlow.material.opacity = 0.55 * fl; flashGlow.position.copy(w10.group.position).add(new THREE.Vector3(0, 0, 0.4)); w10.sweep(prog(rf, 146, 153), 0.7);
+        const fl = pulse(rf, 143, 3.5, 1.2); w10.gain(1.0 + 0.8 * fl + 0.25 * pulse(rf, 145.6, 5)); flashGlow.material.opacity = 0.35 * fl; flashGlow.position.copy(w10.group.position).add(new THREE.Vector3(0, 0, 0.4)); w10.sweep(prog(rf, 146, 153), 0.7);
         strokes2[0].swoosh(rf, 144.5, 148.5, 150, 155); strokes2[1].swoosh(rf, 147, 150, 151, 155); strokes2[2].swoosh(rf, 143, 148, 149, 154); strokes2[3].swoosh(rf, 145.5, 149, 150, 154); strokes2[4].swoosh(rf, 147, 150.5, 151.5, 155.5);
         const g = prog(rf, 151.6, 156.5, 'outBackSoft'); sb.scale.setScalar(Math.max(0.001, g * 1.15)); sb.rotation.z = (rf - 152) * 0.03; sb.visible = rf > 151.6;
       }
@@ -91,7 +91,7 @@ export default {
         exposure: 1 + 0.25 * (1 - prog(rf, 118, 124)) + 0.14 * pulse(rf, 129.8, 4) + 0.3 * pulse(rf, 143, 3.5), chroma: 0.0014 + 0.004 * pulse(rf, 143, 4) + 0.004 * prog(rf, 156, 160),
         zoom: 1 + 0.03 * pulse(rf, 129.8, 5) + 0.035 * pulse(rf, 145.6, 5), lens: 0.07 * pulse(rf, 129.8, 6) + 0.1 * pulse(rf, 143, 5),
         bars: track([[118, 0], [124, 0], [128, 0.06, 'out3'], [156, 0.06], [160, 0.03]], rf), barsAlpha: 0.55,
-        leak: 0.2, leakColor: [1, 0.25, 0.45], leakPos: [0.98, 0.05], leakSize: 0.8,
+        leak: 0.2, leakColor: [1, 0.25, 0.32], leakPos: [0.98, 0.05], leakSize: 0.8, zoomBlur: 0.55 * pulse(rf, 138.6, 3.5, 2.6) + 0.5 * prog(rf, 157, 160, 'in2'), tint: [1.04, 0.97, 0.94],
       } };
     } };
   },

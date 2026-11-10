@@ -30,7 +30,7 @@ export default {
     const twinkles = []; for (let i = 0; i < 16; i++) { const g = kit.plate(tex.glint, 1, 1, { additive: true, billboard: true, color: R.pick(['#ffffff', '#bfe0ff', '#ffe6b0']), opacity: 0.8 }); g.position.set(R.range(-13, 16), R.range(-5.5, 7.5), R.range(-34, -14)); g.userData = { s: R.range(0.5, 1.5), ph: R() * 9, sp: R.range(0.25, 0.6) }; group.add(g); twinkles.push(g); }
 
     // ---------- the planet: NASA Blue Marble photograph on a disc, relit (terminator, glowing limb, ocean glint)
-    const PC = new THREE.Vector3(-7.0, -7.5, -2.2), PR = 9.9; const L = new THREE.Vector3(0.6, 0.62, 0.5).normalize();
+    const PC = new THREE.Vector3(-7.0, -7.5, -2.2), PR = 9.9; const L = new THREE.Vector3(0.9, 0.36, -0.26).normalize(); // sunlight from the right: the planet falls into night toward the lower left
     const earthU = { tMap: { value: tex.earth || tex.planet }, tHi: { value: tex.earthHi || tex.white }, uHasHi: { value: tex.earthHi ? 1 : 0 }, tNoise: { value: tex.noise }, uLight: { value: L }, uSpin: { value: 0 } };
     const planet = new THREE.Mesh(new THREE.CircleGeometry(PR, 180), new THREE.ShaderMaterial({ uniforms: earthU, depthWrite: false,
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
@@ -40,8 +40,12 @@ export default {
           vec2 cuv = (duv - vec2(0.45)) / 0.55; // the visible slice, cut from the 8000 px original at full resolution
           if (uHasHi > 0.5 && cuv.x > 0.003 && cuv.y > 0.003 && cuv.x < 0.997 && cuv.y < 0.997) tex = texture2D(tHi, cuv).rgb;
           tex *= 0.93 + 0.14 * texture2D(tNoise, duv * 46.0).r;
-          vec3 n = vec3(p, sqrt(max(0.0, 1.0 - r * r))); float d = dot(n, uLight); float day = smoothstep(-0.32, 0.3, d);
-          vec3 col = mix(tex * vec3(0.03, 0.06, 0.11), tex * tex * (0.42 + 0.46 * day) + tex * 0.12 * day, day);
+          vec3 n = vec3(p, sqrt(max(0.0, 1.0 - r * r))); float d = dot(n, uLight); float day = smoothstep(-0.1, 0.26, d);
+          float luma = dot(tex, vec3(0.3, 0.5, 0.2)); float land = smoothstep(-0.02, 0.06, tex.g - tex.b) * (1.0 - smoothstep(0.5, 0.75, luma));
+          float lights = land * smoothstep(0.46, 0.7, texture2D(tNoise, duv * 9.0).g) * smoothstep(0.5, 0.86, texture2D(tNoise, duv * 67.0).r);
+          vec3 night = tex * vec3(0.03, 0.05, 0.1) + vec3(1.0, 0.7, 0.32) * lights * 1.5; // night side with city lights
+          vec3 col = mix(night, tex * tex * (0.46 + 0.5 * day) + tex * 0.14 * day, day);
+          col += vec3(0.55, 0.22, 0.06) * exp(-d * d / 0.012) * 0.16; // warm band along the terminator
           vec3 h = normalize(uLight + vec3(0.0, 0.0, 1.0)); col += vec3(1.0, 0.95, 0.85) * pow(max(dot(n, h), 0.0), 50.0) * 0.3 * day;
           col *= vec3(0.82, 1.05, 1.12);
           col += vec3(0.1, 0.5, 0.95) * pow(r, 16.0) * (0.1 + 0.6 * day);
@@ -83,7 +87,7 @@ export default {
     // ---------- the word: rich gold, bright yellow bevel outlines
     const GOLD = { top: '#ffcf52', bot: '#b9670c', side: '#8a4c08', sideDark: '#190c00', rim: '#fff46a', gain: 1.0, chrome: 0.5, rimAmt: 1.0 };
     const WP = new THREE.Vector3(2.05, -0.45, 0);
-    const w = kit.word(words.s07 || 'ALONE', { size: 1.62, depth: 0.55, bevel: 0.034, style: GOLD, seed: 7 }); w.group.position.copy(WP); w.set('uGrit', 0.05); group.add(w.group);
+    const w = kit.word(words.s07 || 'ALONE', { size: 1.62, depth: 0.55, bevel: 0.02, style: GOLD, seed: 7 }); w.group.position.copy(WP); w.set('uGrit', 0.0); group.add(w.group);
     const wGlow = kit.plate(tex.glow, 11, 5.4, { color: '#ff9a12', additive: true, opacity: 0.26 }); wGlow.position.copy(WP).add(new THREE.Vector3(0, 0, -0.9)); group.add(wGlow);
 
     // ---------- strokes: lead from the planet to the word, loop around it
@@ -125,7 +129,10 @@ export default {
     const CLOSE = [[106.5, 1.35], [108, 1.12, 'out2'], [110, 0.9], [111, 0.62], [112, 0.45], [113, 0.32], [114, 0.17], [115, 0.0]];
     const n = w.n; const V = new THREE.Vector3(), C0 = new THREE.Vector3();
     // the word bends in 3D: letters sit on a cylinder, so the first letters turn away around the planet
-    const Rb = w.width * 1.25, xmax = w.width / 2; const bend = w.letters.map((Lt) => { const ph = (Lt.home.x - xmax) / Rb; return { x: xmax + Rb * Math.sin(ph) - Lt.home.x, z: -Rb * (1 - Math.cos(ph)), ry: ph }; });
+    const Rb = w.width * 2.3, xmax = w.width / 2; const bend = w.letters.map((Lt) => { const u = Lt.home.x - xmax, ph = u / Rb; return { x: xmax + Rb * Math.sin(ph) - Lt.home.x, y: -0.022 * u * u, z: -Rb * (1 - Math.cos(ph)), ry: ph, rz: -0.044 * u }; });
+    // one light for planet and word: letters nearer the sun are brighter; the far letters fall into shade and
+    // pick up blue earthshine on their sides
+    const cA = new THREE.Color(), cB = new THREE.Color(); w.letters.forEach((Lt, i) => { const k = n > 1 ? i / (n - 1) : 1; const u = Lt.mesh.material.uniforms; u.uLight.value.set(0.85, 0.42, 0.3); u.uSide.value.copy(cA.set('#3a6a78')).lerp(cB.set('#96560a'), Math.min(1, 0.62 + k)); u.uSideDark.value.copy(cA.set('#06141c')).lerp(cB.set('#1c0e00'), Math.min(1, 0.4 + k)); Lt.shade = 0.9 + 0.14 * k; });
 
     return { group, update(rf) {
       const T = rf - 78; earthU.uSpin.value = 0.02 + T * 0.0009; neb.material.uniforms.uTime.value = T;
@@ -137,14 +144,14 @@ export default {
       satl.material.opacity = prog(rf, 86, 92);
       // letters tumble in one at a time from the upper right; the stack rotates into reading position
       const settle = prog(rf, 89.5, 96.5, 'io3');
-      w.group.rotation.set(-0.2, -0.3 + (rf - 96) * 0.0015, lerp(1.12, 0.21, settle)); w.group.scale.setScalar(lerp(0.72, 1, settle));
+      w.group.rotation.set(-0.16, -0.36 + (rf - 96) * 0.0015, lerp(1.12, 0.2, settle)); w.group.scale.setScalar(lerp(0.72, 1, settle));
       for (let i = 0; i < n; i++) {
         const st = 84 + i * (10.4 / Math.max(1, n - 1)); const t = (rf - st) / 6.5;
         if (t <= 0) { w.pose(i, { o: 0 }); continue; }
         const e = ease.out3(c01(t)), k = 1 - e; const sp = i % 2 ? -1 : 1; const b = bend[i];
-        w.pose(i, { x: b.x + k * (3.2 + i * 0.3), y: k * (2.6 - i * 0.9), z: b.z + k * 2.4, rx: k * 2.6 * sp, ry: b.ry + k * 3.4, rz: k * -2.2 * sp, s: lerp(0.55, 1, e), o: c01(t * 4) });
+        w.pose(i, { x: b.x + k * (3.2 + i * 0.3), y: b.y + k * (2.6 - i * 0.9), z: b.z + k * 2.4, rx: k * 2.6 * sp, ry: b.ry + k * 3.4, rz: b.rz + k * -2.2 * sp, s: lerp(0.55, 1, e), o: c01(t * 4) });
       }
-      w.gain(lerp(1.35, 0.96, prog(rf, 84, 95)) + 0.22 * pulse(rf, 98.2, 6)); w.sweep(prog(rf, 98, 107), 0.32);
+      const gn = lerp(1.35, 0.96, prog(rf, 84, 95)) + 0.22 * pulse(rf, 98.2, 6); w.letters.forEach((Lt) => { Lt.mesh.material.uniforms.uGain.value = gn * lerp(1, Lt.shade, settle); }); w.sweep(prog(rf, 98, 107), 0.28);
       wGlow.material.opacity = 0.26 * prog(rf, 90, 97) + 0.16 * pulse(rf, 98.2, 6);
       strokes[0].swoosh(rf, 90.5, 95, 96, 101); strokes[1].swoosh(rf, 92.5, 97, 98, 103); strokes[2].swoosh(rf, 91.5, 96, 97.5, 102.5); strokes[3].swoosh(rf, 99, 103, 104.5, 109);
       strokes[4].swoosh(rf, 95, 100, 102, 108); strokes[5].swoosh(rf, 97, 102, 104, 110); strokes[6].swoosh(rf, 100, 103.5, 105, 109); shoot.swoosh(rf, 101, 104, 104.5, 108);

@@ -44,7 +44,8 @@ edit must *show* that arc, not just print words:
   decaying over 4–6 frames.
 
 ### 3. Lettering
-- **Face:** ultra-heavy condensed squared display capitals, each letter about **1 : 2** (width : height).
+- **Face:** the typeface is **Chinese Rocks** (Typodermic), slanted 0.19 to the right — ultra-heavy condensed
+  squared display capitals, each letter about **1 : 2** (width : height).
   Rectangular bowls with chamfered corners; counters are narrow vertical slots a third of the letter wide;
   small spurs on stroke ends. **Rough-cut edges**: slightly non-parallel sides, fine tooth, scattered chips —
   as if cut by hand from sheet metal. Letters vary a little in height, baseline and rotation.

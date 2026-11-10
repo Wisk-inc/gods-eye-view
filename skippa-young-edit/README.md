@@ -10,7 +10,9 @@ A frame-for-frame recreation of a 3D-typography lyric-edit style, rebuilt as a s
 | `lyrics.txt` | The words on screen — edit this |
 | `song.timing.json` | Tempo, clip window and where each sung word lands (measured from the song's official preview) |
 | `edit.config.json` | Size, frame rate, credit line, call-to-action, emblem text |
-| `engine/` | The renderer: lettering (`glyphs.js`), scene kit (`kit.js`), finishing stack (`post.js`), one module per scene in `engine/sections/` |
+| `engine/` | The renderer: lettering (`glyphs.js`), scene kit (`kit.js`), finishing stack (`post.js`), one module per scene in `engine/sections/` (A–K, eleven scenes) |
+| `engine/assets/` | Real photographs and scans, all public domain or CC0 (NASA Earth and Moon, studio lighting map, metal and wood grain) — see `CREDITS.md` there |
+| `engine/local/` | **Not in the repository.** Your own copy of the display font and any overlay pack — see "Font and local pack" |
 | `render.mjs` | Renders stills, comparison sheets or the full video |
 | `tools/` | Guide beat, tempo analysis, word-timing map, slot fitting, contact sheets |
 
@@ -77,7 +79,32 @@ node render.mjs --only F --frames 160-240 --step 2 --scale 0.5 --samples 4 --she
 
 `--frames` are reference-frame numbers (0–657). `engine/README.md` documents the scene API.
 
-## Fonts
+`--samples N` sets the sub-frames blended per frame (motion blur, depth of field, anti-aliasing): 8 is the
+default, 12 is smoother on fast spins. `--parts N` splits a render across N processes and joins the pieces;
+it is no faster on a software GL renderer, which already uses every core.
 
-Teko, Bebas Neue and Antonio (SIL Open Font License 1.1), in `engine/fonts/`. The display lettering is Teko
-Bold re-cut at load time by `engine/glyphs.js`.
+## Font and local pack
+
+The reference is set in **Chinese Rocks** (Typodermic). Its licence allows the font in rendered video but not
+passing the font file on, so the file is not in this repository. Put your copy at:
+
+```
+engine/local/chinese-rocks.otf
+```
+
+The engine then uses it exactly as drawn, with the reference's slant. Without it the lettering falls back to
+Teko Bold, re-cut at load time by `engine/glyphs.js` to the same proportions (Teko, Bebas Neue and Antonio
+are bundled in `engine/fonts/` under the SIL Open Font License 1.1).
+
+`engine/local/` can also hold an overlay pack: clips (smoke, shards, tunnels, glitch flashes, embers) and
+sprite images that the scenes screen over the picture when present and skip when absent.
+
+```bash
+python3 tools/import_pack.py --clips /path/to/clips --images /path/to/images --map pack.map.json
+```
+
+`pack.map.json` names what to import: which clip becomes which overlay (`tunnel2`, `shards`, `smoke_puff`…)
+and which image becomes which sprite; the header of `tools/import_pack.py` shows the format.
+
+The folder is git-ignored on purpose: editing packs rarely come with a licence to redistribute. Only add
+material you have the right to use, and leave out anyone else's footage, logos or character art.

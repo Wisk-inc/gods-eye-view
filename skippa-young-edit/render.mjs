@@ -83,6 +83,7 @@ if (A.frames) {
   for (const part of String(A.frames).split(',')) { const m = part.split('-').map((x) => parseFloat(x)); const a = m[0], b = m.length > 1 ? m[1] : m[0]; const step = parseFloat(A.step || 1); for (let rf = a; rf <= b + 1e-6; rf += step) list.push({ rf: Math.round(rf), n: outFrameOfRf(rf) }); }
 } else { for (let n = 0; n < info.frames; n++) list.push({ rf: null, n }); }
 
+if (A.chunk) { const [ci, cn] = String(A.chunk).split('/').map(Number); list = list.slice(Math.floor((ci * list.length) / cn), Math.floor(((ci + 1) * list.length) / cn)); }
 const grab = async (n) => { const url = await page.evaluate(([i]) => window.EDIT.renderFrame(i), [n]); return Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'); };
 const t0 = Date.now();
 
@@ -98,6 +99,16 @@ if (A.stills || A.sheet) {
 } else {
   const out = path.resolve(ROOT, A.out || 'out/edit.mp4'); fs.mkdirSync(path.dirname(out), { recursive: true });
   const silent = out.replace(/\.mp4$/, '.silent.mp4');
+  if (A.parts && !A.chunk) {
+    // ---- parallel render: N child processes each encode one contiguous chunk, then the chunks are joined losslessly
+    const N = Math.max(1, parseInt(A.parts)); const base = out.replace(/\.mp4$/, ''); const fwd = []; const raw = process.argv.slice(2);
+    for (let i = 0; i < raw.length; i++) { if (['--parts', '--out', '--audio', '--audio-start'].includes(raw[i])) { i++; continue; } if (raw[i] === '--no-audio') continue; fwd.push(raw[i]); }
+    const kids = Array.from({ length: N }, (_, i) => new Promise((res) => { const c = spawn(process.execPath, [fileURLToPath(import.meta.url), ...fwd, '--quiet', '--no-audio', '--chunk', `${i}/${N}`, '--out', `${base}.part${i}.mp4`], { stdio: ['ignore', 'inherit', 'inherit'] }); c.on('close', (code) => res(code)); }));
+    const codes = await Promise.all(kids); if (codes.some((c) => c !== 0)) { console.log('a chunk failed: ' + codes.join(',')); process.exit(1); }
+    const lst = `${base}.parts.txt`; fs.writeFileSync(lst, Array.from({ length: N }, (_, i) => `file '${base}.part${i}.mp4'`).join('\n') + '\n');
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-c', 'copy', '-movflags', '+faststart', silent], { stdio: 'inherit' }); if (r.status !== 0) process.exit(1);
+    for (let i = 0; i < N; i++) fs.rmSync(`${base}.part${i}.mp4`, { force: true }); fs.rmSync(lst, { force: true });
+  } else {
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(cfg.fps), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'slow', '-crf', String(A.crf || 15), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silent], { stdio: ['pipe', 'inherit', 'inherit'] });
   for (let i = 0; i < list.length; i++) {
     const buf = await grab(list[i].n);
@@ -105,6 +116,7 @@ if (A.stills || A.sheet) {
     if (!quiet && (i % 20 === 0 || i === list.length - 1)) { const el = (Date.now() - t0) / 1000; console.log(`  frame ${i + 1}/${list.length}  ${el.toFixed(0)}s elapsed, ~${((el / (i + 1)) * (list.length - i - 1)).toFixed(0)}s left`); }
   }
   ff.stdin.end(); await new Promise((r) => ff.on('close', r));
+  }
   // ---- audio: user clip if given, else the bundled original guide beat
   let audio = A.audio ? path.resolve(A.audio) : null;
   if (!audio && !A['no-audio']) {

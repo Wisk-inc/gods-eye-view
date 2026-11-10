@@ -311,7 +311,12 @@ One continuous 3D space; earlier words stay visible, dim and out of focus.
 Kept: resolution, frame rate, every frame range above, the beat logic, the look of each section, the full
 effect stack, layout and scale of every word and major shape.
 
-Replaced with originals: the words (new text; yours via `lyrics.txt`), the typeface (an open-licence font re-cut
-to match the lettering), the creator's logo and handle (an original roundel and a credit line), the planet (a
-procedural texture), and the silhouette (an original falling figure). No footage, artwork or audio from the
-reference is used.
+Replaced with originals: the words (new text; yours via `lyrics.txt`), the creator's logo and handle (an
+original roundel and a credit line), and the silhouette (an original falling figure). No footage, artwork or
+audio from the reference is used.
+
+Matched with the real thing: the typeface is **Chinese Rocks** (Typodermic) — the creator's text preset names
+it, with a slant of 0.19, a light-to-saturated vertical gradient, a grunge texture blended into the faces and
+letters that rise from below while growing. The font file is licensed, so it is loaded from `engine/local/`
+and never committed; an open-licence font re-cut to the same proportions is the fallback. The planet is NASA's
+Blue Marble photograph (public domain) with a night side, city lights and an atmosphere limb.

@@ -3,7 +3,7 @@
 // reference edit (30 fps, 114 BPM, first beat at 0.116 s). A different song tempo simply re-maps
 // output time -> rf, so every hit stays on its beat.
 import * as THREE from 'three';
-import { loadFont, DEFAULT_CUT } from './glyphs.js';
+import { loadFont, DEFAULT_CUT, ROCKS_CUT } from './glyphs.js';
 import { makeTextures } from './textures.js';
 import { makeKit } from './kit.js';
 import { Post, POST_DEFAULTS } from './post.js';
@@ -40,9 +40,12 @@ export async function init(userCfg = {}) {
   const canvas = document.getElementById('c'); canvas.width = cfg.width; canvas.height = cfg.height;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping; renderer.autoClear = false; renderer.setPixelRatio(1); renderer.setSize(cfg.width, cfg.height, false);
-  const font = await loadFont(cfg.fontUrl || 'fonts/Teko-Bold.woff');
+  // genuine reference font if it has been placed in engine/local/ (not redistributable), else the re-cut open font
+  let font = null, cut = { ...DEFAULT_CUT, ...(cfg.cut || {}) }, fontName = 'Teko Bold (re-cut)';
+  if (cfg.localFont !== false) { try { font = await loadFont('local/chinese-rocks.otf'); cut = { ...ROCKS_CUT, ...(cfg.cut || {}) }; fontName = 'Chinese Rocks'; } catch (e) { font = null; } }
+  if (!font) font = await loadFont(cfg.fontUrl || 'fonts/Teko-Bold.woff');
   const tex = await makeTextures(cfg);
-  const kit = makeKit({ font, cut: { ...DEFAULT_CUT, ...(cfg.cut || {}) }, tex });
+  const kit = makeKit({ font, cut, tex });
   const post = new Post(renderer, cfg.width, cfg.height, tex);
   const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(40, cfg.width / cfg.height, 0.05, 600);
   const ctx = { THREE, kit, tex, cfg, words: cfg.words || {}, scene, camera };
@@ -53,7 +56,7 @@ export async function init(userCfg = {}) {
   }
   S = { cfg, renderer, post, scene, camera, sections, ctx, canvas };
   const endT = timeOfRf(REF.frames, cfg);
-  return { frames: Math.ceil(endT * cfg.fps), fps: cfg.fps, duration: endT, sections: sections.map((s) => ({ id: s.def.id, name: s.def.name, range: s.def.range })), errors };
+  return { frames: Math.ceil(endT * cfg.fps), fps: cfg.fps, duration: endT, font: fontName, sections: sections.map((s) => ({ id: s.def.id, name: s.def.name, range: s.def.range })), errors };
 }
 
 function sectionAt(rf) { for (const s of S.sections) if (rf >= s.def.range[0] && rf < s.def.range[1]) return s; return null; }
@@ -70,6 +73,7 @@ export function renderFrame(n, opts = {}) {
       const tk = t0 + ((k + 0.5) / N - 0.5) * (sh / cfg.fps); const rf = Math.min(hi, Math.max(lo, rfAt(tk, cfg)));
       const out = sec.inst.update(N === 1 ? rf0 : rf, S.ctx) || {};
       const c = out.cam || {}; camera.position.copy(c.pos || new THREE.Vector3(0, 0, 6)); camera.up.set(0, 1, 0); camera.lookAt(c.tgt || new THREE.Vector3()); if (c.roll) camera.rotateZ(c.roll * DEG); camera.fov = c.fov || 40; camera.updateProjectionMatrix();
+      { const L = S.ctx.kit.lens; if (L) { camera.updateMatrixWorld(true); L.view.value.copy(camera.matrixWorldInverse); L.focus.value = c.focus ?? camera.position.distanceTo(c.tgt || _o.set(0, 0, 0)); L.aperture.value = c.aperture > 0 && N > 1 ? c.aperture : 0; L.px.value = cfg.height; } }
       if (c.aperture > 0 && N > 1) { // thin-lens depth of field: jitter the lens, keep the focal point fixed
         camera.updateMatrix(); const right = _r.setFromMatrixColumn(camera.matrix, 0), up = _u.setFromMatrixColumn(camera.matrix, 1); camera.getWorldDirection(_d);
         const focus = c.focus ?? camera.position.distanceTo(c.tgt || _o.set(0, 0, 0)); _f.copy(camera.position).addScaledVector(_d, focus);

@@ -11,7 +11,7 @@ export default {
     const { THREE, kit, tex, words } = ctx; const group = new THREE.Group(); const R = rng(160);
     const CARD = { fill: '#b8141c', fill2: '#62050b', outline: '#ffe6d6', ow: 0.04, r: 0.07 };
 
-    const bg = kit.bg('grad', { a: '#42091c', b: '#0a0206', vig: 0.9, scale: 1.15, w: 160, h: 90 }); bg.position.z = -22; group.add(bg);
+    const bg = kit.bg('grad', { a: '#5c0e1e', b: '#0a0206', vig: 0.9, scale: 1.15, w: 160, h: 90 }); bg.position.z = -22; group.add(bg);
     const haze = []; for (let i = 0; i < 8; i++) { const s = R.range(8, 15); const m = kit.plate(tex.smoke, s, s, { color: R.pick(['#a01438', '#7a1030', '#c02048']), additive: true, opacity: R.range(0.08, 0.16) }); m.position.set(R.range(-12, 12), R.range(-6, 6), R.range(-14, -6)); m.userData = { sp: R.range(-0.004, 0.004) }; group.add(m); haze.push(m); }
 
     // ---- the sunburst
@@ -19,7 +19,7 @@ export default {
     const sbGlow = kit.plate(tex.glow, 13, 13, { color: '#e0180c', additive: true, opacity: 0.14 }); sbGlow.position.z = -0.9; group.add(sbGlow);
     // petal cards radiating around the ring + deeper floating cards
     const petals = []; for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU + 0.35; const q = kit.quad({ ...CARD, w: 1.75, h: 1.2 }); q.userData = { a, r: 3.3 + (i % 2) * 0.35, ph: R() * 6 }; group.add(q); petals.push(q); }
-    const floaters = [[-6.4, 3.4, -3.2, 1.5, 1.2], [6.8, -3.2, -2.8, 1.6, 1.3], [7.2, 3.6, -4.2, 1.2, 1.2], [-7.0, -3.4, -3.8, 1.3, 1.0], [0.4, 4.9, -5.0, 1.1, 1.1], [-1.2, -5.2, -4.6, 1.4, 1.0]].map((c) => { const q = kit.quad({ ...CARD, w: c[3], h: c[4] }); q.position.set(c[0], c[1], c[2]); q.userData = { p: c, ph: R() * 6 }; group.add(q); return q; });
+    const floaters = [[-6.4, 3.4, -3.2, 1.5, 1.2], [6.8, -3.2, -2.8, 1.6, 1.3], [7.2, 3.6, -4.2, 1.2, 1.2], [-7.0, -3.4, -3.8, 1.3, 1.0], [0.4, 4.9, -5.0, 1.1, 1.1], [-1.2, -5.2, -4.6, 1.4, 1.0], [-4.9, 0.7, -1.7, 1.3, 1.1], [5.1, 1.0, -2.0, 1.4, 1.2], [-2.7, 3.7, -2.3, 1.2, 1.2], [3.0, -3.8, -2.1, 1.3, 1.0], [-8.8, 0.2, -4.6, 1.5, 1.3], [9.0, 0.5, -4.4, 1.4, 1.4]].map((c) => { const q = kit.quad({ ...CARD, w: c[3], h: c[4] }); q.position.set(c[0], c[1], c[2]); q.userData = { p: c, ph: R() * 6 }; group.add(q); return q; });
     // rings: scattered, a few big dark discs top-right, soft foreground bokeh
     const rings = kit.bubbles({ count: 30, box: [14, 8, 4], center: [0, 0, 0.6], size: [0.12, 0.6], seed: 161, kinds: ['ring', 'ringBold', 'ring', 'ringThin'], avoid: 2.0, gain: 1.2 }); group.add(rings);
     const discs = kit.bubbles({ count: 4, box: [2.6, 1.8, 0.8], center: [4.2, 2.3, 0.5], size: [0.9, 1.6], seed: 162, kinds: ['ringBold', 'ring'] }); group.add(discs);
@@ -44,18 +44,18 @@ export default {
     [streakA, streakB, ...vert, ...sweeps].forEach((r) => group.add(r.mesh));
     const glints = []; for (let i = 0; i < 6; i++) { const g = kit.plate(tex.glint, 1, 1, { additive: true, billboard: true, opacity: 0, color: '#fff0e0' }); g.userData = { t: 163 + i * 13.1, p: [R.range(-3.6, 3.6), R.range(-2, 2), 1.0] }; group.add(g); glints.push(g); }
 
-    const dG = w14.width / (1.294 * 0.94);  // distance at which the giant word just fills the frame width
+    const dG = w14.width / (1.294 * 0.88) + 0.45;  // distance at which the giant word just fills the frame width
     const cam = [
-      { rf: 159.5, p: [7.0, 4.6, 5.6], t: [6.0, 4.0, 0], roll: 32 },
+      { rf: 159.5, p: [3.4, 2.3, 5.2], t: [2.8, 1.9, 0], roll: 24 },
       { rf: 163.6, p: [1.0, -0.35, 4.5], t: [0.55, -0.2, 0], roll: -5, e: 'out4' },
       { rf: 174.5, p: [0.5, -0.2, 4.1], t: [0.3, -0.12, 0], roll: 2.5, e: 'lin' },
       { rf: 177.4, p: [0.0, 0.0, 6.7], t: [0, 0, 0], roll: -3, e: 'out3' },
       { rf: 187, p: [0.15, 0.05, 6.2], t: [0.1, 0.05, 0], roll: 1.5, e: 'lin' },
       { rf: 189.6, p: [0.0, 0.0, 6.1], t: [0, 0, 0], roll: -5, e: 'out3' },
       { rf: 199.6, p: [0.0, 0.0, 5.6], t: [0, 0, 0], roll: 5, e: 'lin' },
-      { rf: 200.8, p: [0.0, 0.0, 5.3], t: [0, 0, 0], roll: 4, e: 'lin' },
-      { rf: 205.6, p: [0.04, -0.03, dG], t: [0.04, -0.03, 0], roll: 0, e: 'in3' },
-      { rf: 216.8, p: [0.06, -0.03, dG * 0.9], t: [0.06, -0.03, 0], roll: -1, e: 'lin' },
+      { rf: 200.3, p: [0.0, 0.0, 5.4], t: [0, 0, 0], roll: 4, e: 'lin' },
+      { rf: 205.2, p: [0.0, -0.02, dG], t: [0.0, -0.02, 0], roll: 0, e: 'in2' },
+      { rf: 216.8, p: [0.02, -0.02, dG * 0.93], t: [0.02, -0.02, 0], roll: -1, e: 'lin' },
       { rf: 219.8, p: [-2.6, 1.4, 1.6], t: [-3.4, 1.9, 0], roll: 24, e: 'in3' },
       { rf: 222.5, p: [0.3, 0.1, 3.1], t: [0.25, 0.1, 0], roll: -17, e: 'out4' },
       { rf: 236, p: [0.0, 0.0, 9.4], t: [0, 0, 0], roll: 13, e: 'out2' },
@@ -66,9 +66,9 @@ export default {
     return { group, update(rf) {
       const T = rf - 160;
       haze.forEach((m, i) => { m.rotation.z = T * m.userData.sp; });
-      sb.rotation.z = T * 0.0075; sb.scale.setScalar(1 + 0.05 * pulse(rf, 161.4, 5) + 0.06 * pulse(rf, 177.2, 5) + 0.05 * pulse(rf, 193, 5) + 0.05 * pulse(rf, 224.5, 5)); sbGlow.material.opacity = 0.12 + 0.14 * pulse(rf, 177.2, 6) + 0.14 * pulse(rf, 193, 6); sb.rotation.x = -0.28 + 0.06 * Math.sin(rf * 0.04); sb.rotation.y = 0.34 - T * 0.003;
-      const pk = prog(rf, 174.5, 179.5, 'outBackSoft');
-      petals.forEach((q, i) => { const u = q.userData; const a = u.a + T * 0.006; const r = u.r * pk + 0.25 * Math.sin(rf * 0.07 + u.ph); q.position.set(Math.cos(a) * r, Math.sin(a) * r, 0.1 + 0.25 * Math.sin(u.ph)); q.rotation.set(0.25 * Math.sin(rf * 0.05 + u.ph), 0.3 * Math.cos(rf * 0.04 + u.ph), a + 0.3); q.scale.setScalar(Math.max(0.001, pk)); q.visible = rf > 174.5; });
+      sb.rotation.z = T * 0.0075; sb.scale.setScalar(1 + 0.05 * pulse(rf, 161.4, 5) + 0.06 * pulse(rf, 177.2, 5) + 0.05 * pulse(rf, 193, 5) + 0.05 * pulse(rf, 224.5, 5)); sbGlow.material.opacity = 0.2 + 0.14 * pulse(rf, 177.2, 6) + 0.14 * pulse(rf, 193, 6); sb.rotation.x = -0.28 + 0.06 * Math.sin(rf * 0.04); sb.rotation.y = 0.34 - T * 0.003;
+      const pk = prog(rf, 160.6, 166.5, 'outBackSoft');
+      petals.forEach((q, i) => { const u = q.userData; const a = u.a + T * 0.006; const r = u.r * pk + 0.25 * Math.sin(rf * 0.07 + u.ph); q.position.set(Math.cos(a) * r, Math.sin(a) * r, 0.1 + 0.25 * Math.sin(u.ph)); q.rotation.set(0.25 * Math.sin(rf * 0.05 + u.ph), 0.3 * Math.cos(rf * 0.04 + u.ph), a + 0.3); q.scale.setScalar(Math.max(0.001, pk)); q.visible = rf > 160.6; });
       floaters.forEach((q, i) => { const u = q.userData; q.position.set(u.p[0], u.p[1] + 0.12 * Math.sin(rf * 0.05 + u.ph), u.p[2]); q.rotation.set(0.3 * Math.sin(rf * 0.03 + u.ph), T * 0.008 * (i % 2 ? 1 : -1) + u.ph, 0.4 * Math.cos(rf * 0.035 + u.ph)); });
       rings.drift(T, 0.006, 0.06); discs.drift(T, 0.004, 0.05); ringsFar.drift(T, 0.004, 0.08); ringsNear.drift(T, 0.012, 0.1); dust.drift(T, [0.003, 0.009, 0.012], 0.07);
       notes.forEach((g, i) => { const u = g.userData; g.position.set(u.p.x + 0.08 * Math.sin(rf * 0.09 + u.ph), u.p.y + 0.14 * Math.sin(rf * 0.12 + u.ph * 2), u.p.z); g.rotation.set(0.3 * Math.sin(rf * 0.06 + u.ph), 0.5 * Math.sin(rf * 0.05 + u.ph), 0.25 * Math.sin(rf * 0.08 + u.ph)); g.visible = rf > 186 && rf < 240; g.scale.setScalar(u.s * prog(rf, 186 + i * 0.8, 191 + i * 0.8, 'outBackSoft')); });
@@ -92,11 +92,11 @@ export default {
         desat: track([[205.5, 0], [213, 1, 'io2'], [219.5, 1], [221, 0.5, 'out2'], [236, 0.55], [241, 1, 'in2']], rf),
         zoomBlur: Math.max(0.5 * (1 - prog(rf, 159.5, 163.5, 'out2')), 0.8 * punch, 0.55 * giant, 0.6 * prog(rf, 237, 241, 'in2')),
         bloom: 0.62 + 0.4 * punch + 0.2 * (pulse(rf, 161.4, 5) + pulse(rf, 193, 5) + pulse(rf, 208.7, 5) + pulse(rf, 224.5, 5)), bloomThreshold: 0.86, vignette: 0.85, saturation: 1.06, contrast: 1.1,
-        exposure: (0.94 + 0.3 * punch + 0.14 * (pulse(rf, 161.4, 4) + pulse(rf, 177.2, 4) + pulse(rf, 193, 4) + pulse(rf, 208.7, 4) + pulse(rf, 224.5, 4))) * lerp(1, 0.5, prog(rf, 237, 241, 'in2')),
+        exposure: (1.06 + 0.3 * punch + 0.14 * (pulse(rf, 161.4, 4) + pulse(rf, 177.2, 4) + pulse(rf, 193, 4) + pulse(rf, 208.7, 4) + pulse(rf, 224.5, 4))) * lerp(1, 0.5, prog(rf, 237, 241, 'in2')),
         chroma: 0.0014 + 0.006 * punch + 0.003 * giant, lens: 0.12 * punch + 0.07 * (pulse(rf, 161.4, 6) + pulse(rf, 193, 6) + pulse(rf, 224.5, 6)),
         zoom: 1 + 0.03 * (pulse(rf, 161.4, 5) + pulse(rf, 177.2, 5) + pulse(rf, 193, 5) + pulse(rf, 208.7, 5) + pulse(rf, 224.5, 5)),
         bars: track([[160, 0.03], [164, 0.05, 'out3'], [200, 0.05], [206, 0.082, 'out3'], [218, 0.082], [222, 0.045], [241, 0.03]], rf), barsAlpha: 0.92,
-        rays: 0.25 * (pulse(rf, 177.2, 8) + pulse(rf, 193, 8)), raysCenter: [0.5, 0.5], leak: 0.2, leakColor: [1, 0.3, 0.2], leakPos: [0.02, 0.95], leakSize: 0.85,
+        rays: 0.25 * (pulse(rf, 177.2, 8) + pulse(rf, 193, 8)), raysCenter: [0.5, 0.5], flash: Math.max(0.26 * P(176), 0.26 * P(188.4), 0.34 * pulse(rf, 202.6, 4, 2.4), 0.36 * P(219.9, 3.5)), flashColor: [1, 0.86, 0.84], leak: 0.2, leakColor: [1, 0.3, 0.2], leakPos: [0.02, 0.95], leakSize: 0.85,
       } };
     } };
   },

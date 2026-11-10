@@ -26,28 +26,36 @@ void main(){ vNo = normal; vN = normalize(normalMatrix * normal); vPos = positio
   vec4 mv = modelViewMatrix * vec4(position, 1.0); vView = -mv.xyz; gl_Position = projectionMatrix * mv; }`;
 const TEXT_FS = /* glsl */ `
 uniform vec3 uTop; uniform vec3 uBot; uniform vec3 uSide; uniform vec3 uSideDark; uniform vec3 uRim; uniform vec3 uLight;
-uniform float uCap; uniform float uDepth; uniform float uGain; uniform float uOpacity; uniform float uChrome; uniform float uRimAmt; uniform float uDesat; uniform float uGrit; uniform float uSweep; uniform float uSweepAmt; uniform float uHomeX;
-uniform sampler2D tEnv; uniform sampler2D tGrit; uniform float uEnvAmt;
+uniform float uCap; uniform float uDepth; uniform float uBevel; uniform float uGain; uniform float uOpacity; uniform float uChrome; uniform float uRimAmt; uniform float uDesat; uniform float uGrit; uniform float uSweep; uniform float uSweepAmt; uniform float uHomeX;
+uniform sampler2D tEnv; uniform sampler2D tGrit; uniform float uEnvAmt; uniform sampler2D tFace; uniform float uFaceAmt; uniform vec2 uFaceOff;
 vec3 envAt(vec3 r){ return texture2D(tEnv, vec2(atan(r.x, -r.z) / 6.2831853 + 0.5, asin(clamp(r.y, -1.0, 1.0)) / 3.14159265 + 0.5)).rgb; }
 float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1.0,0.0)), f.x), mix(h2(i+vec2(0.0,1.0)), h2(i+vec2(1.0,1.0)), f.x), f.y); }
 varying vec3 vN; varying vec3 vNo; varying vec3 vPos; varying vec3 vView;
 void main(){
-  vec3 n = normalize(vN); vec3 v = normalize(vView);
+  // sliver triangles in the cap triangulation carry zero / NaN normals (they showed as black specks): fall back to the face normal
+  vec3 no = vNo; if (!(dot(no, no) > 0.25)) no = vec3(0.0, 0.0, 1.0);
+  vec3 n = normalize(vN); if (!(dot(n, n) > 0.25)) n = vec3(0.0, 0.0, 1.0); vec3 v = normalize(vView);
   if (!gl_FrontFacing) n = -n;
-  float face = smoothstep(0.86, 0.985, vNo.z);
-  float bevel = smoothstep(0.12, 0.55, vNo.z) * (1.0 - face);
+  float face = smoothstep(0.86, 0.985, no.z);
+  float bevel = smoothstep(0.12, 0.55, no.z) * (1.0 - face);
+  // an outward bevel folds over itself inside the font's narrow nicks; those inverted patches sit in the front bevel zone with a
+  // back-facing normal and would shade as the dark side (black specks) — shade them as the face instead
+  if (vPos.z > -uBevel * 1.03 && no.z < 0.12) { face = 1.0; bevel = 0.0; n = gl_FrontFacing ? normalize(vN + vec3(0.0, 0.0, 2.0)) : vec3(0.0, 0.0, 1.0); }
   float gy = clamp(vPos.y / uCap + 0.5, 0.0, 1.0);
   vec3 faceCol = mix(uBot, uTop, smoothstep(0.02, 0.92, gy));
   vec2 gp0 = vPos.xy / uCap; float wear = texture2D(tGrit, gp0 * 0.42).r;
   // real studio reflections: the lighting map is sampled along the reflection vector, with the surface wear
   // nudging the normal so highlights break up like brushed metal
-  vec3 nb = normalize(n + vec3((wear - 0.5) * 0.22, (texture2D(tGrit, gp0 * 0.42 + 0.37).r - 0.5) * 0.22, 0.0) * face);
+  vec3 nb = normalize(n + vec3((wear - 0.5) * 0.22, (texture2D(tGrit, gp0 * 0.42 + 0.37).r - 0.5) * 0.22, 0.0) * face * clamp(uGrit * 10.0, 0.0, 1.5));
   vec3 r = reflect(-v, nb); vec3 env = envAt(r); float el = dot(env, vec3(0.333));
   float band = smoothstep(-0.35, 0.45, r.y + 0.25 * sin(vPos.x * 3.0 / uCap));
   faceCol *= mix(1.0, mix(0.62, 1.18, band), uChrome * (1.0 - uEnvAmt));
   faceCol = mix(faceCol, faceCol * (0.5 + 0.95 * min(el, 1.1)) + env * 0.1, uChrome * uEnvAmt);
   faceCol *= 1.0 - uGrit * 1.1 * (wear - 0.5);
+  // the preset's recipe: a grunge photo mapped across the whole word and blended in Difference mode
+  float fl = dot(texture2D(tFace, vec2(vPos.x + uHomeX, vPos.y) / (uCap * 5.5) + uFaceOff).rgb, vec3(0.299, 0.587, 0.114)); fl = clamp((fl - 0.05) * 1.9, 0.0, 0.7);
+  faceCol = mix(faceCol, faceCol * (1.0 - fl * 1.2) + vec3(fl) * 0.05, uFaceAmt); // darken-only wear: the smudges of a Difference blend without its hue flips on warm colours
   // worn surface: mottling + fine diagonal scratches
   vec2 gp = vPos.xy / uCap; float grit = vn(gp*16.0)*0.55 + vn(gp*41.0)*0.3 + vn(vec2(gp.x*90.0 + gp.y*60.0, gp.y*6.0))*0.15;
   faceCol *= 1.0 - uGrit * (grit - 0.42) * 1.6;
@@ -83,23 +91,25 @@ class Word {
     const font = o.font || kit.font, cut = o.cut || kit.cut;
     this.text = text; this.size = o.size ?? 1; this.kit = kit;
     const capEm = capHeight(font, cut); const em = this.size / capEm;
-    this.depth = (o.depth ?? 0.34) * this.size; const bevel = (o.bevel ?? 0.016) * this.size;
+    this.depth = (o.depth ?? 0.34) * this.size; const inset = cut.bevelInset !== false; const bevel = (o.bevel ?? (inset ? 0.016 : 0.011)) * this.size;
     this.group = new THREE.Group(); this.letters = [];
     const R = rng(o.seed ?? hashStr(text)); const irr = o.irregular ?? 1;
     const chars = text.split('');
     const glyphs = chars.map((ch, i) => cutGlyph(font, ch, cut, o.unique === false ? 0 : (i * 7 + (o.seed ?? 0)) % 5));
     const advs = glyphs.map((g) => g.advance * em + (o.tracking ?? 0) * this.size);
     const total = advs.reduce((a, b) => a + b, 0); this.width = total; this.height = this.size;
+    const faceOff = new THREE.Vector2(0.28 + R() * 0.3, 0.26 + R() * 0.16);
     this.uniformsBase = () => ({
       uTop: { value: COL('#fff') }, uBot: { value: COL('#fff') }, uSide: { value: COL('#888') }, uSideDark: { value: COL('#111') }, uRim: { value: COL('#fff') },
-      uLight: { value: new THREE.Vector3(0.35, 0.8, 0.6) }, uCap: { value: this.size }, uDepth: { value: this.depth }, uGain: { value: 1 }, uOpacity: { value: 1 }, uChrome: { value: 0 }, uRimAmt: { value: 0.9 }, uDesat: { value: 0 }, uGrit: { value: 0.1 }, uSweep: { value: -99 }, uSweepAmt: { value: 0 }, uHomeX: { value: 0 },
+      uLight: { value: new THREE.Vector3(0.35, 0.8, 0.6) }, uCap: { value: this.size }, uDepth: { value: this.depth }, uBevel: { value: Math.max(bevel, 1e-4) }, uGain: { value: 1 }, uOpacity: { value: 1 }, uChrome: { value: 0 }, uRimAmt: { value: 0.9 }, uDesat: { value: 0 }, uGrit: { value: 0.1 }, uSweep: { value: -99 }, uSweepAmt: { value: 0 }, uHomeX: { value: 0 },
+      tFace: { value: kit.tex.faceTex || kit.tex.white }, uFaceAmt: { value: kit.tex.faceTex ? 0.6 : 0 }, uFaceOff: { value: faceOff },
       tEnv: { value: kit.tex.env || kit.tex.white }, tGrit: { value: kit.tex.grit || kit.tex.white }, uEnvAmt: { value: kit.tex.env ? 1 : 0 },
     });
     let cursor = -total / 2;
     chars.forEach((ch, i) => {
       const g = glyphs[i]; const adv = advs[i];
       if (g.shapes.length) {
-        const geo = new THREE.ExtrudeGeometry(g.shapes, { depth: this.depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel / em, bevelOffset: -bevel / em, bevelSegments: 1, curveSegments: 1, steps: 1 });
+        const geo = new THREE.ExtrudeGeometry(g.shapes, { depth: this.depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel / em, bevelOffset: inset ? -bevel / em : 0, bevelSegments: 1, curveSegments: 1, steps: 1 });
         geo.scale(em, em, 1);
         geo.translate(-(g.advance * em) / 2, -this.size / 2, -(this.depth + bevel));
         const mat = new THREE.ShaderMaterial({ vertexShader: TEXT_VS, fragmentShader: TEXT_FS, uniforms: this.uniformsBase(), transparent: true, side: THREE.DoubleSide });
@@ -141,6 +151,7 @@ class Word {
       if (type === 'drop') this.pose(i, { y: k * S * 1.5 * amp, rz: k * sgn * 0.55 * amp, s: 1 + k * 0.4, o });
       else if (type === 'rise') this.pose(i, { y: -k * S * 1.5 * amp, rz: k * sgn * 0.4 * amp, s: 1 + k * 0.3, o });
       else if (type === 'pop') this.pose(i, { s: Math.max(0.02, e), rz: k * sgn * 0.3, o });
+      else if (type === 'grow') this.pose(i, { y: -k * S * 1.1 * amp, x: -k * S * 0.08, s: lerp(0.07, 1, e), o });
       else if (type === 'slam') this.pose(i, { z: k * S * 5 * amp, s: 1 + k * 0.5, rz: k * sgn * 0.25, o });
       else if (type === 'swing') this.pose(i, { x: k * S * 0.9 * amp, y: -k * S * 1.3 * amp, rz: -k * 1.0 * amp, s: 1 - k * 0.25, o });
       else if (type === 'spin') this.pose(i, { ry: k * 2.2 * sgn, z: k * S * 1.2, o });
@@ -238,6 +249,56 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
     return g;
   };
 
+  // ---- analytic depth of field. The engine blurs by jittering the lens, which at low sample counts shows as
+  // ghost copies on small bright things. These three helpers draw from the UN-jittered camera (kit.lens.view,
+  // set by the engine every sub-frame) and widen themselves by the thin-lens blur circle instead: smooth bokeh
+  // discs, soft cards and soft rings at any sample count.
+  kit.lens = { view: { value: new THREE.Matrix4() }, focus: { value: 5 }, aperture: { value: 0 }, px: { value: 1080 } };
+  /** points for bead strings: [[x,y,z,size]…], beads graded large in the middle, tiny at the ends */
+  kit.stringPoints = (o = {}) => {
+    const { strings = 6, dots = 46, box = [16, 9, 8], center = [0, 0, 0], size = 0.11, seed = 5 } = o; const R = rng(seed); const out = [];
+    for (let s = 0; s < strings; s++) {
+      const cps = []; let x = (R() - 0.5) * box[0], y = (R() - 0.5) * box[1], z = (R() - 0.5) * box[2]; let a = R() * TAU;
+      for (let k = 0; k < 6; k++) { cps.push(new THREE.Vector3(center[0] + x, center[1] + y, center[2] + z)); a += R.range(-1.2, 1.2); x += Math.cos(a) * box[0] * 0.22; y += Math.sin(a) * box[1] * 0.3; z += R.range(-1, 1) * box[2] * 0.12; }
+      const c = new THREE.CatmullRomCurve3(cps); const big = R.range(0.65, 1.5);
+      for (let i = 0; i < dots; i++) { const p = c.getPoint(i / (dots - 1)); const taper = 0.35 + 0.65 * Math.pow(Math.sin(Math.PI * i / (dots - 1)), 0.8); out.push([p.x, p.y, p.z, size * big * taper]); }
+    }
+    return out;
+  };
+  /** additive bokeh points. pts: [[x,y,z,diameter]…] */
+  kit.bokeh = (pts, o = {}) => {
+    const { color = '#ffffff', opacity = 1, gain = 1, floor = 0.17 } = o;
+    const pos = new Float32Array(pts.length * 3), sc = new Float32Array(pts.length); pts.forEach((p, i) => { pos[i * 3] = p[0]; pos[i * 3 + 1] = p[1]; pos[i * 3 + 2] = p[2]; sc[i] = p[3] ?? 0.1; });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aScale', new THREE.BufferAttribute(sc, 1));
+    const mat = new THREE.ShaderMaterial({ uniforms: { uView: kit.lens.view, uFocus: kit.lens.focus, uAperture: kit.lens.aperture, uPx: kit.lens.px, uColor: { value: COL(color).multiplyScalar(gain) }, uOpacity: { value: opacity }, uFloor: { value: floor } },
+      vertexShader: `uniform mat4 uView; uniform float uFocus; uniform float uAperture; uniform float uPx; attribute float aScale; varying float vA;
+        void main(){ vec4 mv = uView * modelMatrix * vec4(position, 1.0); float d = max(-mv.z, 0.05); float coc = 2.0 * uAperture * abs(d - uFocus) / max(uFocus, 0.01);
+          float core = aScale * 1.6; float tot = core + coc; gl_Position = projectionMatrix * mv; gl_PointSize = min(tot * uPx * 0.5 * projectionMatrix[1][1] / d, 700.0); vA = (core * core) / (tot * tot); }`,
+      fragmentShader: `uniform vec3 uColor; uniform float uOpacity; uniform float uFloor; varying float vA;
+        void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float k = 1.0 - vA;
+          float soft = smoothstep(1.0, 0.0, r); soft = soft * soft * 1.6;                                   // in focus: a small glowing bead
+          float disc = smoothstep(1.0, 0.86, r) * (0.7 + 0.3 * smoothstep(0.5, 0.95, r));                 // out of focus: a flat disc with a brighter rim
+          float a = mix(min(soft, 1.0), disc * max(vA * 2.2, uFloor), smoothstep(0.03, 0.55, k)); gl_FragColor = vec4(uColor * a * uOpacity, 1.0); }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    const m = new THREE.Points(geo, mat); m.frustumCulled = false; m.setOpacity = (v) => { mat.uniforms.uOpacity.value = v; }; return m;
+  };
+  /** soft card / disc / ring: rounded-rect SDF whose edges and outline blur with defocus.
+   *  {w,h,r (corner radius; r >= min(w,h)/2 gives a disc), fill, fillA (0 = outline only), line, ow, additive} */
+  kit.soft = (o = {}) => {
+    const { w = 1, h = 1, r = 0.05, fill = '#030506', fillA = 1, line = '#c2ced6', ow = 0.02, gain = 1, opacity = 1, additive = false } = o; const pad = 0.9;
+    const mat = new THREE.ShaderMaterial({ uniforms: { uView: kit.lens.view, uFocus: kit.lens.focus, uAperture: kit.lens.aperture, uHalf: { value: new THREE.Vector2(w / 2, h / 2) }, uR: { value: Math.min(r, w / 2, h / 2) }, uOw: { value: ow }, uFill: { value: COL(fill) }, uFillA: { value: fillA }, uLine: { value: COL(line).multiplyScalar(gain) }, uOpacity: { value: opacity } },
+      vertexShader: `uniform mat4 uView; uniform float uFocus; uniform float uAperture; varying vec2 vP; varying float vCoc;
+        void main(){ vP = position.xy; vec4 mv = uView * modelMatrix * vec4(position, 1.0); float d = max(-mv.z, 0.05); vCoc = uAperture * abs(d - uFocus) / max(uFocus, 0.01); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec2 uHalf; uniform float uR; uniform float uOw; uniform vec3 uFill; uniform float uFillA; uniform vec3 uLine; uniform float uOpacity; varying vec2 vP; varying float vCoc;
+        float sdRR(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+        void main(){ float d = sdRR(vP, uHalf, uR); float s = max(vCoc, fwidth(d) * 0.75);
+          float inside = (1.0 - smoothstep(-s, s, d)) * uFillA; float sg = s * 0.55 + uOw * 0.5; float dl = d + uOw * 0.5;
+          float ln = exp(-dl * dl / (2.0 * sg * sg)) * min(1.0, uOw / (uOw * 0.5 + s * 0.9));
+          vec3 col = mix(uFill, uLine, clamp(ln, 0.0, 1.0)); float a = clamp(max(inside, ln), 0.0, 1.0) * uOpacity; gl_FragColor = vec4(${additive ? 'uLine * ln * uOpacity, 1.0' : 'col, a'}); }`,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w + pad * 2, h + pad * 2), mat); m.setOpacity = (v) => { mat.uniforms.uOpacity.value = v; }; return m;
+  };
+
   // ---- anamorphic lens flare
   kit.flare = (o = {}) => {
     const { color = '#49d6ff', size = 1, streak = 7, ghosts = true, gain = 1 } = o; const g = new THREE.Group(); const c = COL(color);
@@ -328,6 +389,10 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
     m.drift = (rf, vel = [0.0, 0.006, 0.0], sway = 0.06) => { for (let i = 0; i < count; i++) { const k = i * 3; arr[k] = center[0] + wrap(base[k] + vel[0] * rf + Math.sin(rf * 0.04 + ph[i]) * sway, box[0] / 2); arr[k + 1] = center[1] + wrap(base[k + 1] + vel[1] * rf, box[1] / 2); arr[k + 2] = center[2] + wrap(base[k + 2] + vel[2] * rf + Math.cos(rf * 0.03 + ph[i]) * sway, box[2] / 2); } geo.attributes.position.needsUpdate = true; return m; };
     m.drift(0); return m;
   };
+
+  // ---- sprite from the local pack (white-on-black images, added to the picture); a hidden dummy if absent
+  kit.sprite = (name, h = 1, o = {}) => { const t = tex.pack && tex.pack[name]; if (!t) { const d = new THREE.Object3D(); d.visible = false; d.material = { opacity: 0, color: new THREE.Color(), rotation: 0 }; d.missing = true; return d; } const a = (t.userData && t.userData.aspect) || 1; return kit.plate(t, h * a, h, { additive: true, ...o }); };
+  kit.has = (clip) => !!(tex.ovl && tex.ovl[clip]);
 
   // ---- flat shape from a list of [x,y] points
   kit.poly = (pts, o = {}) => { const { color = '#ffffff', gain = 1, opacity = 1 } = o; const s = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], p[1]))); const geo = new THREE.ShapeGeometry(s); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.22, uv.getY(i) * 0.22); return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: COL(color).multiplyScalar(gain), map: o.grain === false ? null : (tex.wood || null), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); };

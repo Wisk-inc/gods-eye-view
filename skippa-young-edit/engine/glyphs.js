@@ -13,9 +13,19 @@ import { Font } from 'three/addons/loaders/FontLoader.js';
 import { rng, fbm1, hash1 } from './util.js';
 
 export async function loadFont(url) {
-  const buf = await (await fetch(url)).arrayBuffer();
-  return new Font(new TTFLoader().parse(buf));
+  const res = await fetch(url); if (!res.ok) throw new Error('font not found: ' + url);
+  const buf = await res.arrayBuffer();
+  const make = (reversed) => { const l = new TTFLoader(); l.reversed = reversed; return new Font(l.parse(buf)); };
+  const ar = (pts) => { let a = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p.x * q.y - q.x * p.y; } return Math.abs(a / 2); };
+  // the letter O must come out as ONE shape whose outline is larger than its counter (otherwise counters and bodies are swapped)
+  const good = (f) => { const sh = f.generateShapes('O', 1); return sh.length === 1 && sh[0].holes.length === 1 && ar(sh[0].getPoints(4)) > ar(sh[0].holes[0].getPoints(4)); };
+  let font = make(false); if (!good(font)) { const alt = make(true); if (good(alt)) font = alt; } // CFF outlines wind the other way
+  return font;
 }
+
+// The genuine reference font (Chinese Rocks, Typodermic) is used exactly as drawn: no outline surgery, only
+// the preset's slant. Its licence allows rendered video and forbids modifying or sharing the font file.
+export const ROCKS_CUT = { minHole: 0.0015, minIsland: 0.001, denick: 0, facet: 5, xScale: 1, yScale: 1, boldX: 0, boldY: 0, slot: 0, flare: 0, flareMinLen: 1, flareMaxLen: 0, step: 0.02, wobble: 0, wobbleFreq: 1, tooth: 0, toothFreq: 1, chipEvery: 1e9, chipDepth: [0, 0], chipWidth: [0.01, 0.01], tracking: 0.012, slant: 0.19, bevelInset: false };
 
 // Default "cut" — tuned against the reference lettering. All lengths are in em units.
 export const DEFAULT_CUT = {
@@ -163,8 +173,13 @@ export function cutGlyph(font, ch, cut = DEFAULT_CUT, variant = 0) {
   const raw = ch === ' ' ? [] : font.generateShapes(ch, 1);
   const shapes = []; let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
   const prep = (pts, isHole, k) => {
-    let p = dedupe(pts).map((v) => new THREE.Vector2(v.x * C.xScale, v.y * C.yScale));
+    let p = dedupe(pts).map((v) => new THREE.Vector2(v.x * C.xScale + (C.slant || 0) * v.y * C.yScale, v.y * C.yScale));
     p = simplify(p);
+    // remove micro-nicks (two short edges meeting at a sharp angle): an outward bevel self-intersects on them and shows as black specks
+    if (C.denick) { for (let pass = 0; pass < 6; pass++) { const n = p.length; if (n < 6) break; const q = []; let changed = false;
+      for (let i = 0; i < n; i++) { const a = p[(i + n - 1) % n], b = p[i], c = p[(i + 1) % n]; const l1 = a.distanceTo(b), l2 = b.distanceTo(c);
+        if (l1 < C.denick && l2 < C.denick && ((b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y)) / (l1 * l2 + 1e-12) < 0.5) { changed = true; continue; } q.push(b); }
+      p = q; if (!changed) break; } }
     if (p.length < 3) return null;
     p = offsetPoly(p, isHole ? -C.boldX * (1 + C.slot) : C.boldX, isHole ? -C.boldY : C.boldY);
     p = flareTerminals(p, C, isHole);
@@ -173,9 +188,9 @@ export function cutGlyph(font, ch, cut = DEFAULT_CUT, variant = 0) {
   };
   raw.forEach((sh, si) => {
     const outer = prep(sh.getPoints(C.facet), false, si);
-    if (!outer) return;
+    if (!outer || Math.abs(signedArea(outer)) < (C.minIsland ?? 0)) return;
     const shape = new THREE.Shape(outer);
-    sh.holes.forEach((h, hi) => { const hp = prep(h.getPoints(C.facet), true, si * 10 + hi + 1); if (hp && Math.abs(signedArea(hp)) > 1e-5) shape.holes.push(new THREE.Path(hp)); });
+    sh.holes.forEach((h, hi) => { const hp = prep(h.getPoints(C.facet), true, si * 10 + hi + 1); if (hp && Math.abs(signedArea(hp)) > (C.minHole ?? 1e-5)) shape.holes.push(new THREE.Path(hp)); });
     shapes.push(shape);
     for (const p of outer) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
   });
