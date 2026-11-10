@@ -4,7 +4,8 @@ All files in this folder are public domain or CC0.
 
 | File | Source | Licence |
 |---|---|---|
-| `earth.jpg` | NASA Goddard / Suomi NPP "Blue Marble 2012" (NASA Image Library `GSFC_20171208_Archive_e001386`), cropped and resized | Public domain (NASA) |
+| `earth_day.jpg` | NASA Scientific Visualization Studio, global Earth map with clouds, snow and sea ice (`svs.gsfc.nasa.gov`, visualization 3615, `flat_earth_Largest_still.0330.jpg`, 8192×4096) | Public domain (NASA) |
+| `earth_night.jpg` | NASA Earth Observatory, "Black Marble" 2016 night lights (`BlackMarble_2016_3km.jpg`), resized to 4096×2048 | Public domain (NASA) |
 | `moon.jpg` | NASA Scientific Visualization Studio, CGI Moon Kit (`lroc_color_poles_1k.jpg`) | Public domain (NASA) |
 | `env.jpg` | Poly Haven, "Studio Small 09", tonemapped and resized | CC0 |
 | `grit.jpg` | ambientCG, "Metal009" roughness map, contrast-stretched | CC0 |

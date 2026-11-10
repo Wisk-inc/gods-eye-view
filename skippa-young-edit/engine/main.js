@@ -91,7 +91,9 @@ export function renderFrame(n, opts = {}) {
       camera.setViewOffset(cfg.width, cfg.height, halton(k + 1, 2) - 0.5, halton(k + 1, 3) - 0.5, cfg.width, cfg.height);
       camera.updateMatrixWorld(true);
       post.sample(scene, camera, 1 / N, out.clear ?? 0x000000);
-      if (k === mid || N === 1) P = { ...POST_DEFAULTS, ...(out.post || {}) };
+      if (k === mid || N === 1) { P = { ...POST_DEFAULTS, ...(out.post || {}) };
+        // cfg.calm (0..1) damps exposure pumping and flashes so hits read as light, not as a brightness slider
+        if (cfg.calm > 0) { if (P.exposure > 1) P.exposure = 1 + (P.exposure - 1) * (1 - cfg.calm); P.flash *= 1 - 0.55 * cfg.calm; P.bloom *= 1 - 0.2 * cfg.calm; } }
     }
   } else { P.fade = 1; P.mark = 0; }
   post.finish(P, t0);

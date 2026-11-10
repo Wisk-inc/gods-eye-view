@@ -82,10 +82,10 @@ export default {
       dust.drift(T, [0.003, 0.007, 0.004], 0.08);
       bubbles.forEach((q) => { const u = q.userData; q.position.set(u.b.x + Math.sin(rf * 0.04 * u.k + u.ph) * 0.06, u.b.y + T * 0.003 * u.k, u.b.z); q.quaternion.copy(ctx.camera.quaternion); });
       // s20: slams in huge, then falls out of focus as the camera drops
-      W.s20.reset(1); W.s20.intro(rf, { start: 369.2, stagger: 0.5, dur: 4, type: 'slam', amp: 0.6 }); tilt(W.s20, -0.2, -0.2, 0.02); W.s20.gain(lerp(1.0, 0.55, prog(rf, 376, 382)) + 0.3 * pulse(rf, 370, 5)); if (rf < 369.2 || rf > 396) hide(W.s20);
+      W.s20.reset(1); W.s20.intro(rf, { start: 369.2, stagger: 0.5, dur: 4, type: 'slam', amp: 0.25 }); tilt(W.s20, -0.2, -0.2, 0.02); W.s20.gain(lerp(1.0, 0.55, prog(rf, 376, 382)) + 0.3 * pulse(rf, 370, 5)); if (rf < 369.2 || rf > 381) hide(W.s20); else if (rf > 376.5) W.s20.opacity(1 - prog(rf, 376.5, 381));
       // s21: letters pop in one after another; it tilts and rises as the next word arrives
       W.s21.reset(1); W.s21.intro(rf, { start: 379, stagger: 0.9, dur: 4.5, type: 'pop' }); tilt(W.s21, -0.22, 0.26, lerp(-0.05, -0.15, prog(rf, 386, 394, 'io2'))); W.s21.group.position.set(P.s21[0] + lerp(0, 0.9, prog(rf, 392, 400, 'io2')), P.s21[1] + lerp(0, 0.5, prog(rf, 390, 400, 'io2')), P.s21[2]);
-      W.s21.gain(lerp(1.0, 0.5, prog(rf, 395, 401)) + 0.3 * pulse(rf, 382.4, 5)); W.s21.sweep(prog(rf, 386, 393), 0.45); if (rf < 379 || rf > 412) hide(W.s21); else if (rf > 404) W.s21.opacity(1 - prog(rf, 404, 412));
+      W.s21.gain(lerp(1.0, 0.5, prog(rf, 395, 401)) + 0.3 * pulse(rf, 382.4, 5)); W.s21.sweep(prog(rf, 386, 393), 0.45); if (rf < 379 || rf > 402) hide(W.s21); else if (rf > 395) W.s21.opacity(1 - prog(rf, 395, 402));
       // s22: first letters giant from the bottom-left
       W.s22.reset(1); W.s22.intro(rf, { start: 394.8, stagger: 1.5, dur: 5, type: 'rise', amp: 1.3 }); tilt(W.s22, -0.22, -0.26 + 0.6 * prog(rf, 410, 414, 'in2'), 0.04 - 0.1 * prog(rf, 410, 414)); W.s22.gain(1.0 + 0.3 * pulse(rf, 398.2, 5) + 0.6 * pulse(rf, 413.4, 4)); W.s22.sweep(prog(rf, 403, 410), 0.45); if (rf < 394.8 || rf > 419) hide(W.s22);
       // s23: rotates in from a steep side view, then tips backward
@@ -93,13 +93,13 @@ export default {
       // s24: rises from below, holds, sinks out of focus
       W.s24.reset(1); W.s24.intro(rf, { start: 426, stagger: 0.8, dur: 5, type: 'rise', amp: 1.0 }); tilt(W.s24, -0.22 - 0.5 * prog(rf, 441, 448, 'io2'), -0.24, -0.05); W.s24.group.position.y = P.s24[1] - 0.5 * prog(rf, 440, 448, 'in2'); W.s24.gain(lerp(1.0, 0.45, prog(rf, 440, 446)) + 0.3 * pulse(rf, 429.8, 5)); W.s24.sweep(prog(rf, 433, 440), 0.45); if (rf < 426 || rf > 453) hide(W.s24); else if (rf > 446) W.s24.opacity(1 - prog(rf, 446, 453));
       // s25: letters drop from the top, later tips down and back
-      W.s25.reset(1); W.s25.intro(rf, { start: 440, stagger: 1.7, dur: 5, type: 'drop', amp: 0.9 }); tilt(W.s25, -0.22 - 0.5 * prog(rf, 455, 462, 'io2'), -0.26, -0.1); W.s25.gain(lerp(1.0, 0.45, prog(rf, 456, 462)) + 0.3 * pulse(rf, 445.6, 5)); if (rf < 440 || rf > 468) hide(W.s25); else if (rf > 460) W.s25.opacity(1 - prog(rf, 460, 468));
+      W.s25.reset(1); W.s25.intro(rf, { start: 440, stagger: 1.7, dur: 5, type: 'drop', amp: 0.9 }); tilt(W.s25, -0.22 - 0.5 * prog(rf, 455, 462, 'io2'), -0.26, -0.1); W.s25.gain(lerp(1.0, 0.45, prog(rf, 456, 462)) + 0.3 * pulse(rf, 445.6, 5)); if (rf < 440 || rf > 458) hide(W.s25); else if (rf > 452.5) W.s25.opacity(1 - prog(rf, 452.5, 458));
       // s26 arrives from the top and EXTENDS into s27
       if (rf < 462) { W.s26.reset(1); W.s26.intro(rf, { start: 453, stagger: 1, dur: 4.5, type: 'drop', amp: 0.9 }); hide(W.s27); if (rf < 453) hide(W.s26); }
       else { hide(W.s26); W.s27.reset(1); W.s27.intro(rf, { start: 462, stagger: 0.9, dur: 4, type: 'drop', amp: 0.7, from: Math.min(n26, W.s27.n - 1) }); if (rf > 480) hide(W.s27); }
       const tip26 = prog(rf, 469, 473, 'in2'); tilt(W.s26, -0.22, -0.26, -0.09); tilt(W.s27, -0.22 - 0.6 * tip26, -0.26, -0.09); W.s27.gain(1.0 + 0.3 * pulse(rf, 463, 5)); W.s26.gain(1.0 + 0.3 * pulse(rf, 456, 5));
       // s28: huge, tips back and fades
-      W.s28.reset(1); W.s28.intro(rf, { start: 477.2, stagger: 0.75, dur: 3.2, type: 'slam', amp: 0.5 }); tilt(W.s28, -0.2 - 0.6 * prog(rf, 486, 491, 'in2'), -0.3, 0.12); W.s28.gain(lerp(1.0, 0.3, prog(rf, 486, 490)) + 0.35 * pulse(rf, 479.5, 5)); W.s28.sweep(prog(rf, 481, 486), 0.45); if (rf < 477.2 || rf > 493) hide(W.s28); else if (rf > 487) W.s28.opacity(1 - prog(rf, 487, 493));
+      W.s28.reset(1); W.s28.intro(rf, { start: 477.2, stagger: 0.75, dur: 3.2, type: 'slam', amp: 0.22 }); tilt(W.s28, -0.2 - 0.6 * prog(rf, 486, 491, 'in2'), -0.3, 0.12); W.s28.gain(lerp(1.0, 0.3, prog(rf, 486, 490)) + 0.35 * pulse(rf, 479.5, 5)); W.s28.sweep(prog(rf, 481, 486), 0.45); if (rf < 477.2 || rf > 493) hide(W.s28); else if (rf > 487) W.s28.opacity(1 - prog(rf, 487, 493));
       // s29: the title word — the preset's "grow" entrance, then the hold
       W.s29.reset(1); W.s29.intro(rf, { start: 495.2, stagger: 1.9, dur: 4.2, type: 'grow' }); tilt(W.s29, -0.2, -0.24 + (rf - 500) * 0.004, -0.03); W.s29.gain(1.02 + 0.4 * pulse(rf, 503.5, 6) + 0.25 * pulse(rf, 508.7, 6)); W.s29.sweep(prog(rf, 505, 515), 0.7); if (rf < 495.2) hide(W.s29);
       // ---- strokes

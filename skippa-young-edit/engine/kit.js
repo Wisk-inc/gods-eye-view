@@ -202,13 +202,15 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
   // ---- rounded card
   const roundRect = (w, h, r) => { const s = new THREE.Shape(); const x = -w / 2, y = -h / 2; r = Math.min(r, w / 2, h / 2); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   kit.quad = (o = {}) => {
-    const { w = 1, h = 1, r = 0.04, fill = '#b0141c', fill2 = null, outline = '#ffffff', ow = 0.03, gain = 1, outlineGain = 1.15, opacity = 1 } = o;
+    const { w = 1, h = 1, r = 0.04, fill = '#b0141c', fill2 = null, outline = '#ffffff', ow = 0.03, gain = 1, outlineGain = 1.15, opacity = 1, shadow = 0.5 } = o;
     const g = new THREE.Group();
+    // soft drop shadow behind the card: it reads as a real layer floating in depth, not a flat sticker
+    if (fill && shadow > 0) { const sh = kit.plate(tex.glow, w * 1.7, h * 1.7, { color: '#000000', opacity: shadow }); sh.position.set(w * 0.05, -h * 0.07, -0.06); sh.renderOrder = -3; g.shadowMesh = sh; g.add(sh); }
     if (fill) {
       const geo = new THREE.ShapeGeometry(roundRect(w, h, r), 3); const c1 = COL(fill).multiplyScalar(gain), c2 = COL(fill2 || fill).multiplyScalar(gain * (fill2 ? 1 : 0.62));
       const cols = new Float32Array(geo.attributes.position.count * 3); for (let i = 0; i < geo.attributes.position.count; i++) { const t = geo.attributes.position.getY(i) / h + 0.5; const c = c2.clone().lerp(c1, t); cols.set([c.r, c.g, c.b], i * 3); }
       geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-      g.fillMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, map: o.grain === false ? null : (tex.wood || null), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); g.add(g.fillMesh);
+      g.fillMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, map: o.grain === true ? (tex.wood || null) : null, side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); g.add(g.fillMesh);
     }
     if (outline && ow > 0) { const sh = roundRect(w + ow, h + ow, r + ow / 2); sh.holes.push(new THREE.Path(roundRect(w - ow, h - ow, Math.max(0.001, r - ow / 2)).getPoints(3).reverse())); const m = new THREE.Mesh(new THREE.ShapeGeometry(sh, 3), new THREE.MeshBasicMaterial({ color: COL(outline).multiplyScalar(outlineGain), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); m.position.z = 0.002; g.outlineMesh = m; g.add(m); }
     return g;
@@ -395,7 +397,7 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
   kit.has = (clip) => !!(tex.ovl && tex.ovl[clip]);
 
   // ---- flat shape from a list of [x,y] points
-  kit.poly = (pts, o = {}) => { const { color = '#ffffff', gain = 1, opacity = 1 } = o; const s = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], p[1]))); const geo = new THREE.ShapeGeometry(s); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.22, uv.getY(i) * 0.22); return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: COL(color).multiplyScalar(gain), map: o.grain === false ? null : (tex.wood || null), side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); };
+  kit.poly = (pts, o = {}) => { const { color = '#ffffff', gain = 1, opacity = 1 } = o; const s = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], p[1]))); const geo = new THREE.ShapeGeometry(s); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.22, uv.getY(i) * 0.22); return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: COL(color).multiplyScalar(gain), map: o.grain === true ? (tex.wood || null) : null, side: THREE.DoubleSide, transparent: opacity < 1, opacity, toneMapped: false })); };
 
   // ---- camera keyframes: [{rf, p:[x,y,z], t:[x,y,z], roll:deg, fov:deg, e:'io3'}]
   kit.cam = (keys, rf) => {
@@ -404,8 +406,9 @@ export function makeKit({ font, cut = DEFAULT_CUT, tex }) {
     else if (rf > keys[0].rf) { let i = 1; while (keys[i].rf < rf) i++; a = keys[i - 1]; b = keys[i]; }
     const t = a === b ? 0 : (ease[b.e] || ease.io3)((rf - a.rf) / (b.rf - a.rf || 1e-6));
     const L = (x, y) => lerp(x, y, t);
-    return { pos: new THREE.Vector3(L(a.p[0], b.p[0]), L(a.p[1], b.p[1]), L(a.p[2], b.p[2])), tgt: new THREE.Vector3(L(a.t[0], b.t[0]), L(a.t[1], b.t[1]), L(a.t[2], b.t[2])), roll: L(a.roll || 0, b.roll || 0), fov: L(a.fov || 40, b.fov || 40) };
+    return { pos: new THREE.Vector3(L(a.p[0], b.p[0]), L(a.p[1], b.p[1]), L(a.p[2], b.p[2])), tgt: new THREE.Vector3(L(a.t[0], b.t[0]), L(a.t[1], b.t[1]), L(a.t[2], b.t[2])), roll: L(a.roll || 0, b.roll || 0) * (kit.rollScale ?? 1), fov: L(a.fov || 40, b.fov || 40) };
   };
+  kit.rollScale = 0.55;   // camera rolls are damped: the moves stay, the twisting is calmer
   /** hand-held shake in world units, add to camera pos/tgt */
   kit.shake = (rf, amp = 0.03, freq = 0.35, seed = 0) => new THREE.Vector3(wobble(rf * freq, seed) * amp, wobble(rf * freq, seed + 7) * amp, 0);
 

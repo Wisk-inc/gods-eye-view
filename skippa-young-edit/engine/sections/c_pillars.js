@@ -26,7 +26,7 @@ export default {
     const pillarL = kit.ribbon([[-6.6, -7.5, 0.9], [-3.1, -0.8, 0.9], [0.5, 8.5, 0.9]], { width: 0.8, taper: 0.22, shade: 0.4, gain: 0.94 });
     const pillarR = kit.ribbon([[6.2, -7.5, 0.55], [3.2, -0.6, 0.55], [1.2, 8.5, 0.55]], { width: 0.72, taper: 0.22, shade: 0.4, gain: 0.94 });
     const pillarC = kit.ribbon([[0.5, -7.5, -0.45], [0.06, -0.3, -0.45], [-0.5, 7.5, -0.45]], { width: 0.36, taper: 0.2, shade: 0.36, gain: 0.96 });
-    const sweepA = kit.ribbon(kit.arc(4.2, 195, 345, 26, { center: [0.2, 1.6, 0.3], squash: 0.42 }), { width: 0.2, gain: 1.3 });
+    const sweepA = kit.ribbon(kit.arc(4.2, 195, 345, 26, { center: [0.2, 0.75, -0.45], squash: 0.42 }), { width: 0.2, gain: 1.3 });   // passes under and behind the word, never across it
     const sweepB = kit.ribbon(kit.arc(5.6, 20, 120, 22, { center: [-0.6, -1.2, -0.9], squash: 0.5 }), { width: 0.1, gain: 1.3 });
     [pillarL, pillarR, pillarC, sweepA, sweepB].forEach((r) => A.add(r.mesh));
     const ringsA = kit.bubbles({ count: 14, box: [13, 7, 5], center: [0, 0.4, -1], size: [0.08, 0.4], seed: 51, kinds: ['ringThin', 'ring', 'ringOpen'], opacity: 0.8, avoid: 1.4 }); A.add(ringsA);

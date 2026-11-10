@@ -76,8 +76,8 @@ export default {
       // s04
       w4.group.visible = halo4.visible = !first; arcs.forEach((a) => (a.mesh.visible = !first)); beams.forEach((b) => (b.mesh.visible = !first));
       if (!first) {
-        const k = prog(rf, 32.6, 36.2, 'out5'); const x = lerp(-6.5, 0, k); w4.group.position.set(x, 0, 0); w4.group.scale.setScalar(lerp(1.7, 1, k));
-        w4.group.rotation.set(-0.3, lerp(-0.7, 0.34, k), lerp(-0.25, -0.05, k)); w4.reset(1); w4.gain(1.05 + 0.4 * pulse(rf, 36, 5) + 0.35 * prog(rf, 43, 47));
+        const k = prog(rf, 32.6, 36.2, 'out5'); const x = 0; w4.group.position.set(lerp(-0.9, 0, k), lerp(-0.35, 0, k), lerp(-7, 0, k)); w4.group.scale.setScalar(1); w4.opacity(prog(rf, 32.6, 34.2));
+        w4.group.rotation.set(-0.3, lerp(-0.5, 0.34, k), lerp(-0.3, -0.05, k)); w4.reset(1); w4.gain(1.05 + 0.4 * pulse(rf, 36, 5) + 0.35 * prog(rf, 43, 47));
         halo4.position.set(x, 0, -0.9);
         arcs.forEach((a, i) => a.swoosh(rf, 34 + i * 0.8, 38 + i * 0.8, 41 + i * 0.5, 47));
         beams.forEach((b, i) => b.swoosh(rf, 35 + i * 0.6, 38.5 + i * 0.6, 60, 70));

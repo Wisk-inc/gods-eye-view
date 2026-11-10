@@ -27,7 +27,8 @@ export default {
     const slashes = [kit.ribbon([[-9.5, -1.5, 0.5], [-7.4, 0.4, 0.5], [-5.6, 2.2, 0.5]], { width: 0.2, taper: 0.5, gain: 1.4 }), kit.ribbon([[9.5, -1.5, 0.5], [7.4, 0.4, 0.5], [5.6, 2.2, 0.5]], { width: 0.2, taper: 0.5, gain: 1.4 }), kit.ribbon([[-9.5, 3.4, 0.4], [-6.5, 4.4, 0.4], [-3.6, 4.0, 0.4], [-1.6, 2.9, 0.4]], { width: 0.14, taper: 0.55, gain: 1.4 })];
     slashes.forEach((r) => group.add(r.mesh));
     // bracket lines that close into an X
-    const hw = line.width / 2; const br = [-1, 1].map((sd) => { const r = kit.ribbon([[sd * 2.2, 3.4, 0.7], [sd * 0.9, 1.5, 0.7], [sd * 0.35, 0, 0.7], [sd * 0.9, -1.5, 0.7], [sd * 2.2, -3.4, 0.7]], { width: 0.075, gain: 1.5, taper: 3 }); r.sd = sd; group.add(r.mesh); return r; });
+    // bracket lines sit behind the letters, so the closing X never covers the words
+    const hw = line.width / 2; const br = [-1, 1].map((sd) => { const r = kit.ribbon([[sd * 2.2, 3.4, -0.62], [sd * 0.9, 1.5, -0.62], [sd * 0.35, 0, -0.62], [sd * 0.9, -1.5, -0.62], [sd * 2.2, -3.4, -0.62]], { width: 0.075, gain: 1.5, taper: 3 }); r.sd = sd; group.add(r.mesh); return r; });
     const moon = kit.planet({ radius: 1.15, map: tex.moon, light: [-0.5, 0.5, 0.7], atmo: '#cfd6dc', atmoAmt: 0.1, night: '#050607', gain: 1.0 }); moon.position.set(hw * 0.72, 2.25, -1.6); group.add(moon);
     const rings = kit.bubbles({ count: 26, box: [line.width * 1.3, 6, 4], center: [0, 0, 0.3], size: [0.1, 0.55], seed: 317, kinds: ['ringThin', 'ring', 'ringOpen'], avoid: 0 }); group.add(rings);
     const bigRings = kit.bubbles({ count: 4, box: [line.width, 4, 1], center: [0, 0.5, -1], size: [1.6, 2.6], seed: 318, kinds: ['ringOpen'], opacity: 0.5 }); group.add(bigRings);
@@ -47,7 +48,7 @@ export default {
       }
       line.group.rotation.set(wide ? -0.16 : -0.24, wide ? 0.0 + 0.05 * Math.sin(rf * 0.05) : 0.22, wide ? 0 : -0.02);
       line.mixStyle(G0, S0, wide ? prog(rf, 337, 344) : 0.75); line.gain(1.12 + 0.4 * pulse(rf, 335.1, 5) + 0.25 * pulse(rf, 350.8, 5)); line.sweep(prog(rf, 346, 362), 0.55);
-      echo.opacity(wide ? 0.07 * prog(rf, 340, 350) : 0); echo.group.position.set(Math.sin(rf * 0.03) * 0.6, 1.5 + Math.cos(rf * 0.04) * 0.2, -6); echo.gain(0.55);
+      echo.opacity(0); echo.group.position.set(Math.sin(rf * 0.03) * 0.6, 1.5 + Math.cos(rf * 0.04) * 0.2, -6); echo.gain(0.55);
       // --- small-view dressing
       const figY = lerp(-3.0, -7.5, prog(rf, 318, 331, 'in2')); fig.position.set(0, figY, 0); fig.rotation.z = 0.5 + T * 0.03; fig.visible = !wide;
       chev.forEach((m) => { const k = prog(rf, 315.5, 319, 'out4'); m.position.set(m.userData.side * lerp(11, 5.0, k), -1.6, 0.4); m.visible = rf < 324; m.material.opacity = 1 - prog(rf, 321, 324); });

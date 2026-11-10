@@ -56,7 +56,7 @@ export default {
       { rf: 118, p: [0.0, 0.35, 6.4], t: [0, 0.3, 0], roll: 2.5 },
       { rf: 126, p: [0.0, 0.3, 5.75], t: [0, 0.25, 0], roll: 0.5, e: 'out3' },
       { rf: 136, p: [0.1, 0.25, 5.35], t: [0.1, 0.2, 0], roll: -1.5, e: 'lin' },
-      { rf: 139, p: [0.2, -0.9, 6.9], t: [0.2, -1.05, 0], roll: 16, e: 'in2' },
+      { rf: 139, p: [0.2, -0.55, 7.2], t: [0.2, -0.65, 0], roll: 16, e: 'in2' },
     ];
     const cam2 = [
       { rf: 139, p: [O2.x + 0.9, O2.y + 0.5, 6.2], t: [O2.x + 0.8, O2.y + 0.4, 0], roll: 14 },
@@ -79,10 +79,10 @@ export default {
       } else {
         // the previous word lingers at the top, rolled and receding, while the next one arrives
         if (w8.group.parent !== S2.g) S2.g.add(w8.group); w8.reset(1); const gk = prog(rf, 139, 151, 'out2');
-        w8.group.position.set(0.6 + 0.5 * gk, 2.35 + 0.5 * gk, -1.6 - 2.2 * gk); w8.group.scale.setScalar(1.1); w8.group.rotation.set(-0.3 - 0.5 * gk, 0.3, -0.12 - 0.2 * gk); w8.gain(lerp(0.75, 0.3, gk)); w8.opacity(1 - prog(rf, 144, 151)); w8.sweep(0, 0);
+        w8.group.position.set(0.7 + 0.2 * gk, 1.75 + 0.1 * gk, -2.6 - 2.4 * gk); w8.group.scale.setScalar(0.9); w8.group.rotation.set(-0.3 - 0.5 * gk, 0.3, -0.12 - 0.2 * gk); w8.gain(lerp(0.75, 0.3, gk)); w8.opacity(1 - prog(rf, 144, 151)); w8.sweep(0, 0);
         animSet(S2, rf, 139);
-        const k = prog(rf, 138.6, 145, 'out4'); w10.group.position.set(lerp(-8.5, 0, k), lerp(-1.4, 0.05, k), lerp(1.2, 0, k)); w10.group.scale.setScalar(lerp(2.5, 1, k));
-        w10.group.rotation.set(-0.28, lerp(0.75, 0.3, k) - (rf - 145) * 0.003, lerp(0.42, 0.26, k));
+        const k = prog(rf, 138.6, 145, 'out4'); w10.group.position.set(lerp(-1.5, 0, k), lerp(-0.9, 0.05, k), lerp(-6.5, 0, k)); w10.group.scale.setScalar(1);
+        w10.group.rotation.set(-0.28, lerp(0.7, 0.3, k) - (rf - 145) * 0.003, lerp(0.4, 0.26, k));
         w10.intro(rf, { start: 138.8, stagger: 1.6, dur: 5.5, type: 'drop', amp: 0.7 });
         const fl = pulse(rf, 143, 3.5, 1.2); w10.gain(1.0 + 0.8 * fl + 0.25 * pulse(rf, 145.6, 5)); flashGlow.material.opacity = 0.35 * fl; flashGlow.position.copy(w10.group.position).add(new THREE.Vector3(0, 0, 0.4)); w10.sweep(prog(rf, 146, 153), 0.7);
         strokes2[0].swoosh(rf, 144.5, 148.5, 150, 155); strokes2[1].swoosh(rf, 147, 150, 151, 155); strokes2[2].swoosh(rf, 143, 148, 149, 154); strokes2[3].swoosh(rf, 145.5, 149, 150, 154); strokes2[4].swoosh(rf, 147, 150.5, 151.5, 155.5);
