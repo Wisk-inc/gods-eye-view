@@ -1,0 +1,14 @@
+{
+  "name": "skippa-young-edit",
+  "private": true,
+  "version": "1.0.0",
+  "description": "3D typography lyric-edit engine (three.js, rendered headless) — recreation of a 3D-typography edit style",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs",
+    "preview": "node render.mjs --preview"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  }
+}

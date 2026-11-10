@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3D Typography Edit Engine</title>
+<style>
+  @font-face { font-family: 'Teko'; font-weight: 700; src: url('fonts/Teko-Bold.woff') format('woff'); }
+  @font-face { font-family: 'Bebas Neue'; font-weight: 400; src: url('fonts/BebasNeue-Regular.woff') format('woff'); }
+  @font-face { font-family: 'Antonio'; font-weight: 700; src: url('fonts/Antonio-Bold.woff') format('woff'); }
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+  import './main.js';
+  window.__engineLoaded = true;
+</script>
+</body>
+</html>

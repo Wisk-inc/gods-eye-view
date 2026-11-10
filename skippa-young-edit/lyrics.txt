@@ -1,0 +1,48 @@
+# WORDS ON SCREEN — edit this file, then run:  node render.mjs
+#
+# The edit has 26 word-slots (the same shot structure as the reference edit). Two ways to fill them:
+#
+#  A) SLOT MODE — exactly 26 lines, one slot per line, top to bottom (what this file does now).
+#     A line can hold 1-4 words. Notes on special slots:
+#       line 8   two words; letters drop in one by one
+#       line 11  grows into line 12 (the reference used a word that extends into a longer one)
+#       line 13  the giant word — the picture drains to black-and-white while it holds
+#       line 16  the wide three-word line that spans the whole frame
+#       line 23  grows into line 24
+#       line 26  the final hold — the last word of the edit
+#
+#  B) PASTE MODE — replace everything below with the lyric lines for the part of the song the edit covers
+#     (any number of lines other than 26, or all on one line). The words are dealt into the slots
+#     automatically using the song's own words-per-slot map in song.timing.json
+#     (49 sung words: 31 before the wordless break, 18 after), so each slot appears as its words are sung.
+#     The covered part starts 4.16 s into the song's official 30-second preview and runs about 20 s.
+#
+# The lines below are ORIGINAL text (not the song's lyrics): the same story, told in our own words —
+# young, alone with his thoughts at night, facing his demons, wondering how he'll be remembered.
+
+YOUNG
+BUT
+THE
+NIGHTS
+FEEL
+OLD
+ALONE
+I FOUGHT
+WITH
+MY
+MYSELF
+EVERY
+NIGHT
+NO
+SLEEP
+FACING MY DEMONS
+WHEN
+I'M GONE
+WILL
+THEY
+SAY
+THAT
+I
+I WAS
+ONLY
+YOUNG
