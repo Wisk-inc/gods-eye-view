@@ -72,6 +72,7 @@ page.on('console', (m) => { const t = m.text(); if (/GPU stall|GL Driver Message
 page.on('pageerror', (e) => console.log('  [pageerror]', String(e && e.stack ? e.stack : e).slice(0, 1200)));
 await page.goto(`http://127.0.0.1:${port}/engine/index.html`);
 await page.waitForFunction('window.__engineLoaded === true', null, { timeout: 60000 });
+if (A.jpeg) cfg.jpeg = parseFloat(A.jpeg);
 const info = await page.evaluate((c) => window.EDIT.init(c), cfg);
 if (info.errors && info.errors.length) { console.log('SECTION BUILD ERRORS:\n' + info.errors.join('\n')); }
 rfTimes = await page.evaluate((n) => Array.from({ length: n + 1 }, (_, rf) => window.EDIT.timeOfRf(rf)), REF.frames);
@@ -83,6 +84,7 @@ if (A.frames) {
   for (const part of String(A.frames).split(',')) { const m = part.split('-').map((x) => parseFloat(x)); const a = m[0], b = m.length > 1 ? m[1] : m[0]; const step = parseFloat(A.step || 1); for (let rf = a; rf <= b + 1e-6; rf += step) list.push({ rf: Math.round(rf), n: outFrameOfRf(rf) }); }
 } else { for (let n = 0; n < info.frames; n++) list.push({ rf: null, n }); }
 
+if (A.from || A.to) list = list.slice(parseInt(A.from || 0), A.to ? parseInt(A.to) : undefined);   // output-frame range [from, to)
 if (A.chunk) { const [ci, cn] = String(A.chunk).split('/').map(Number); list = list.slice(Math.floor((ci * list.length) / cn), Math.floor(((ci + 1) * list.length) / cn)); }
 const grab = async (n) => { const url = await page.evaluate(([i]) => window.EDIT.renderFrame(i), [n]); return Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'); };
 const t0 = Date.now();
